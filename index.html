@@ -706,24 +706,32 @@
 
     <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
     <script>
-        const API_ENDPOINT = localStorage.getItem('scriptEndpoint') || 'https://script.google.com/macros/s/AKfycbwPo7Qt_JGKAijXBNyIjKYHEvYCCSNOtiIKjDvp13e0H6P781iNBxm5IK66mLa0ju0Z/exec';
-
+        // Configuration
+        const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwPo7Qt_JGKAijXBNyIjKYHEvYCCSNOtiIKjDvp13e0H6P781iNBxm5IK66mLa0ju0Z/exec';
         let ocrTransactions = [];
+        let currentDate = new Date().toISOString().split('T')[0];
 
-        document.addEventListener('DOMContentLoaded', () => {
-            setHeaderDate();
-            loadSummary();
-            loadMonthlyData();
-            loadLedger();
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                setHeaderDate();
+                loadSummary();
+                loadMonthlyData();
+                loadLedger();
+            } catch (error) {
+                console.error('Initialization error:', error);
+            }
         });
 
         function setHeaderDate() {
             const now = new Date();
             const options = { weekday: 'short', month: 'short', day: 'numeric' };
             document.getElementById('headerDate').textContent = now.toLocaleDateString('en-US', options);
+            currentDate = now.toISOString().split('T')[0];
         }
 
         function formatCurrency(amount) {
+            if (!amount) amount = 0;
             return '₹ ' + parseFloat(amount).toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
@@ -735,7 +743,7 @@
                 const response = await fetch(`${API_ENDPOINT}?action=getSummary`);
                 const data = await response.json();
 
-                if (data.success) {
+                if (data && data.success) {
                     if (data.status === 'no_entry') {
                         document.getElementById('balanceValue').textContent = '₹ 0.00';
                         document.getElementById('openingVal').textContent = '₹ 0';
@@ -744,10 +752,10 @@
                         document.getElementById('debitsVal').textContent = '₹ 0';
                         document.getElementById('statusDiv').innerHTML = '<div class="alert info"><span>ℹ️</span><span>No entry for today</span></div>';
                     } else {
-                        const opening = data.openingBalance || 0;
-                        const closing = data.calculatedClosing || 0;
-                        const credits = data.totalCredit || 0;
-                        const debits = data.totalDebit || 0;
+                        const opening = parseFloat(data.openingBalance) || 0;
+                        const closing = parseFloat(data.calculatedClosing) || 0;
+                        const credits = parseFloat(data.totalCredit) || 0;
+                        const debits = parseFloat(data.totalDebit) || 0;
                         const calculated = opening + credits - debits;
 
                         document.getElementById('balanceValue').textContent = formatCurrency(closing);
@@ -763,21 +771,23 @@
                     }
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error loading summary:', error);
             }
         }
 
         async function loadMonthlyData() {
             try {
-                const response = await fetch(`${API_ENDPOINT}?action=getMonthlyData&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`);
+                const month = new Date().getMonth() + 1;
+                const year = new Date().getFullYear();
+                const response = await fetch(`${API_ENDPOINT}?action=getMonthlyData&month=${month}&year=${year}`);
                 const data = await response.json();
 
-                if (data.success && data.dailyData) {
+                if (data && data.success && data.dailyData) {
                     const monthlyData = data.dailyData;
-                    const totalCredits = monthlyData.reduce((sum, day) => sum + (day.credits || 0), 0);
-                    const totalDebits = monthlyData.reduce((sum, day) => sum + (day.debits || 0), 0);
+                    const totalCredits = monthlyData.reduce((sum, day) => sum + (parseFloat(day.credits) || 0), 0);
+                    const totalDebits = monthlyData.reduce((sum, day) => sum + (parseFloat(day.debits) || 0), 0);
                     const lastDay = monthlyData[monthlyData.length - 1];
-                    const currentBalance = lastDay ? lastDay.closing : 0;
+                    const currentBalance = lastDay ? parseFloat(lastDay.closing) || 0 : 0;
 
                     document.getElementById('monthlyCredits').textContent = formatCurrency(totalCredits);
                     document.getElementById('monthlyDebits').textContent = formatCurrency(totalDebits);
@@ -802,16 +812,18 @@
                     document.getElementById('dailyActivityList').innerHTML = dailyHTML || '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No data yet</p>';
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error loading monthly data:', error);
             }
         }
 
         async function loadLedger() {
             try {
-                const response = await fetch(`${API_ENDPOINT}?action=getMonthlyData&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`);
+                const month = new Date().getMonth() + 1;
+                const year = new Date().getFullYear();
+                const response = await fetch(`${API_ENDPOINT}?action=getMonthlyData&month=${month}&year=${year}`);
                 const data = await response.json();
 
-                if (data.success && data.dailyData) {
+                if (data && data.success && data.dailyData) {
                     const ledgerHTML = data.dailyData.reverse().map(day => {
                         const status = day.status === 'balanced' ? 'verified' : 'mismatch';
                         const statusText = day.status === 'balanced' ? '✅ Verified' : '⚠️ Mismatch';
@@ -833,7 +845,7 @@
                     document.getElementById('ledgerList').innerHTML = ledgerHTML || '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No entries yet</p>';
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Error loading ledger:', error);
             }
         }
 
@@ -843,33 +855,25 @@
 
             const uploadSection = document.getElementById('uploadSection');
             uploadSection.classList.add('loading');
-            showNotification('📷 Scanning image...');
+            showNotification('📷 Scanning...');
 
             try {
-                // Use Tesseract to recognize text
                 const { data: { text } } = await Tesseract.recognize(file, 'eng', {
-                    logger: m => {
-                        if (m.status === 'recognizing') {
-                            // Update progress silently
-                        }
-                    }
+                    logger: m => { /* silent */ }
                 });
 
                 extractDataFromText(text);
                 uploadSection.classList.remove('loading');
-                showNotification('✅ Scan complete! Review data');
+                showNotification('✅ Scan complete!');
                 showReviewModal();
             } catch (error) {
                 uploadSection.classList.remove('loading');
-                showNotification('❌ Error: ' + error.message);
+                showNotification('❌ Scan error: ' + (error.message || 'Unknown error'));
             }
         }
 
         function extractDataFromText(text) {
             ocrTransactions = [];
-            let totalCredit = 0;
-            let totalDebit = 0;
-
             const lines = text.split('\n');
 
             for (let line of lines) {
@@ -884,37 +888,27 @@
                 let category = 'Other';
                 let type = 'credit';
 
-                // Detect type from keywords
                 if (cleanLine.includes('debit') || cleanLine.includes('withdrawal') || cleanLine.includes('cash') || cleanLine.includes('commission')) {
                     type = 'debit';
-                } else if (cleanLine.includes('credit') || cleanLine.includes('received') || cleanLine.includes('deposit') || cleanLine.includes('cod')) {
-                    type = 'credit';
                 }
 
-                // Detect category
                 if (cleanLine.includes('cod')) category = 'COD';
                 else if (cleanLine.includes('speed')) category = 'Speed Post';
                 else if (cleanLine.includes('ippb')) category = 'IPPB';
                 else if (cleanLine.includes('pli')) category = 'PLI';
                 else if (cleanLine.includes('rpli')) category = 'RPLI';
-                else if (cleanLine.includes('sukanya')) category = 'Sukanya';
-                else if (cleanLine.includes('withdrawal')) category = 'Withdrawal';
-                else if (cleanLine.includes('commission')) category = 'Commission';
 
                 ocrTransactions.push({
-                    date: new Date().toISOString().split('T')[0],
+                    date: currentDate,
                     name: line.substring(0, 40).trim() || category,
                     amount: value,
                     type: type,
                     category: category
                 });
-
-                if (type === 'credit') totalCredit += value;
-                if (type === 'debit') totalDebit += value;
             }
 
             if (ocrTransactions.length === 0) {
-                showNotification('⚠️ No data found in image. Please try another image or add manually.');
+                showNotification('⚠️ No data found. Try another image or add manually.');
                 document.getElementById('fileInput').value = '';
             }
         }
@@ -923,7 +917,7 @@
             const reviewHTML = `
                 <div class="alert success" style="margin-bottom: 16px;">
                     <span>✅</span>
-                    <span><strong>Found ${ocrTransactions.length} entries</strong> - Edit and confirm</span>
+                    <span><strong>Found ${ocrTransactions.length} entries</strong></span>
                 </div>
                 <table class="review-table">
                     <thead>
@@ -932,7 +926,6 @@
                             <th>Amount</th>
                             <th>Type</th>
                             <th>Category</th>
-                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -942,7 +935,6 @@
                                 <td><input type="number" value="${txn.amount}" onchange="ocrTransactions[${idx}].amount = parseFloat(this.value)"></td>
                                 <td>${txn.type}</td>
                                 <td><input type="text" value="${txn.category}" onchange="ocrTransactions[${idx}].category = this.value"></td>
-                                <td><button type="button" class="btn-delete" onclick="ocrTransactions.splice(${idx}, 1); showReviewModal()">Delete</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -955,25 +947,29 @@
 
         async function confirmOCRData() {
             try {
-                showNotification('💾 Saving entries...');
+                showNotification('💾 Saving...');
 
                 for (const txn of ocrTransactions) {
                     const credit = txn.type === 'credit' ? txn.amount : 0;
                     const debit = txn.type === 'debit' ? txn.amount : 0;
                     
-                    const response = await fetch(`${API_ENDPOINT}?action=addTransaction&date=${txn.date}&name=${encodeURIComponent(txn.name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(txn.category)}&confidence=80`);
+                    const url = `${API_ENDPOINT}?action=addTransaction&date=${txn.date}&name=${encodeURIComponent(txn.name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(txn.category)}&confidence=80`;
+                    const response = await fetch(url);
                     const data = await response.json();
                     
                     if (!data.success) {
-                        throw new Error(data.error || 'Failed to save');
+                        throw new Error(data.error || 'Save failed');
                     }
                 }
                 
                 closeModal('reviewModal');
-                loadSummary();
-                loadMonthlyData();
-                loadLedger();
-                showNotification('✅ All entries saved!');
+                setTimeout(() => {
+                    loadSummary();
+                    loadMonthlyData();
+                    loadLedger();
+                }, 500);
+                
+                showNotification('✅ Saved!');
                 ocrTransactions = [];
                 document.getElementById('fileInput').value = '';
             } catch (error) {
@@ -1000,7 +996,6 @@
                     <option value="Savings">Savings Deposit</option>
                     <option value="PLI">PLI</option>
                     <option value="RPLI">RPLI</option>
-                    <option value="Sukanya">Sukanya</option>
                 `;
             } else {
                 categorySelect.innerHTML = `
@@ -1010,7 +1005,6 @@
                     <option value="IPPB">IPPB Withdrawal</option>
                     <option value="Commission">Commission</option>
                     <option value="RSAO">RSAO Debit</option>
-                    <option value="Other">Other Debits</option>
                 `;
             }
         }
@@ -1020,28 +1014,30 @@
 
             const name = document.getElementById('txnName').value;
             const type = document.getElementById('txnType').value;
-            const amount = parseFloat(document.getElementById('txnAmount').value);
+            const amount = parseFloat(document.getElementById('txnAmount').value) || 0;
             const category = document.getElementById('txnCategory').value;
-            const date = new Date().toISOString().split('T')[0];
 
             const credit = type === 'credit' ? amount : 0;
             const debit = type === 'debit' ? amount : 0;
 
             try {
-                const response = await fetch(`${API_ENDPOINT}?action=addTransaction&date=${date}&name=${encodeURIComponent(name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(category)}&confidence=100`);
+                const url = `${API_ENDPOINT}?action=addTransaction&date=${currentDate}&name=${encodeURIComponent(name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(category)}&confidence=100`;
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (data.success) {
                     closeModal('transactionModal');
                     document.querySelector('#transactionModal form').reset();
                     
-                    loadSummary();
-                    loadMonthlyData();
-                    loadLedger();
+                    setTimeout(() => {
+                        loadSummary();
+                        loadMonthlyData();
+                        loadLedger();
+                    }, 500);
                     
-                    showNotification('✅ Transaction added!');
+                    showNotification('✅ Added!');
                 } else {
-                    showNotification('❌ Error: ' + data.error);
+                    showNotification('❌ Error: ' + (data.error || 'Unknown'));
                 }
             } catch (error) {
                 showNotification('❌ Error: ' + error.message);
@@ -1056,12 +1052,12 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    loadLedger();
-                    loadMonthlyData();
-                    loadSummary();
-                    showNotification('🗑️ Day deleted');
-                } else {
-                    showNotification('❌ Error: ' + data.error);
+                    setTimeout(() => {
+                        loadLedger();
+                        loadMonthlyData();
+                        loadSummary();
+                    }, 500);
+                    showNotification('🗑️ Deleted');
                 }
             } catch (error) {
                 showNotification('❌ Error: ' + error.message);
@@ -1072,8 +1068,10 @@
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             
-            if (page === 'home') document.getElementById('homePage').classList.add('active');
-            else if (page === 'dashboard') {
+            if (page === 'home') {
+                document.getElementById('homePage').classList.add('active');
+                loadSummary();
+            } else if (page === 'dashboard') {
                 document.getElementById('dashboardPage').classList.add('active');
                 loadMonthlyData();
             } else if (page === 'ledger') {
@@ -1081,15 +1079,21 @@
                 loadLedger();
             }
             
-            event.target.closest('.nav-item').classList.add('active');
+            if (event && event.target && event.target.closest) {
+                event.target.closest('.nav-item').classList.add('active');
+            }
         }
 
         function openModal(modalId) {
-            document.getElementById(modalId).classList.add('active');
+            if (document.getElementById(modalId)) {
+                document.getElementById(modalId).classList.add('active');
+            }
         }
 
         function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
+            if (document.getElementById(modalId)) {
+                document.getElementById(modalId).classList.remove('active');
+            }
         }
 
         function showNotification(message) {
