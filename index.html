@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#ffffff">
-    <title>Daily Account Assistant v2.0</title>
+    <title>Daily Account Assistant - MVP</title>
     <style>
         * {
             margin: 0;
@@ -20,7 +20,6 @@
             --success: #10b981;
             --danger: #ef4444;
             --warning: #f59e0b;
-            --info: #3b82f6;
             --bg: #ffffff;
             --bg-secondary: #f9fafb;
             --bg-tertiary: #f3f4f6;
@@ -31,7 +30,6 @@
             --text-muted: #9ca3af;
             --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
             --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
-            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
         }
 
         html, body {
@@ -47,10 +45,8 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
-            background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
         }
 
-        /* HEADER */
         header {
             padding: 16px 20px;
             background: var(--bg);
@@ -89,39 +85,19 @@
             color: var(--text-muted);
         }
 
-        .header-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-light);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 16px;
-            transition: all 0.2s ease;
-        }
-
-        .header-icon:active {
-            background: var(--bg-tertiary);
-        }
-
-        /* MAIN CONTENT */
         main {
             flex: 1;
             overflow-y: auto;
             padding: 0 16px 80px 16px;
         }
 
-        /* TAB PAGES */
         .page {
             display: none;
-            animation: fadeIn 0.3s ease;
         }
 
         .page.active {
             display: block;
+            animation: fadeIn 0.3s ease;
         }
 
         @keyframes fadeIn {
@@ -129,7 +105,6 @@
             to { opacity: 1; }
         }
 
-        /* HOME PAGE */
         .balance-card {
             background: linear-gradient(135deg, var(--primary-lighter) 0%, #eff6ff 100%);
             border: 1px solid #e0d9f8;
@@ -189,7 +164,6 @@
             color: var(--danger);
         }
 
-        /* ALERTS */
         .alert {
             background: rgba(239, 68, 68, 0.1);
             border: 1px solid var(--danger);
@@ -203,31 +177,24 @@
             align-items: flex-start;
         }
 
-        .alert.warning {
-            background: rgba(245, 158, 11, 0.1);
-            border-color: var(--warning);
-            color: var(--warning);
-        }
-
         .alert.success {
             background: rgba(16, 185, 129, 0.1);
             border-color: var(--success);
             color: var(--success);
         }
 
+        .alert.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning);
+            color: var(--warning);
+        }
+
         .alert.info {
             background: rgba(59, 130, 246, 0.1);
-            border-color: var(--info);
-            color: var(--info);
+            border-color: #3b82f6;
+            color: #3b82f6;
         }
 
-        .alert-icon {
-            font-size: 16px;
-            flex-shrink: 0;
-            margin-top: 2px;
-        }
-
-        /* UPLOAD SECTION */
         .upload-section {
             background: linear-gradient(135deg, var(--primary-lighter) 0%, #eff6ff 100%);
             border: 2px dashed #e0d9f8;
@@ -237,12 +204,10 @@
             margin: 16px 0;
             cursor: pointer;
             transition: all 0.2s ease;
-            position: relative;
         }
 
         .upload-section:hover {
             border-color: var(--primary);
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(239, 129, 255, 0.05) 100%);
         }
 
         .upload-section.loading {
@@ -267,11 +232,10 @@
             color: var(--text-muted);
         }
 
-        #pdfFile {
+        #fileInput {
             display: none;
         }
 
-        /* ACTION GRID */
         .action-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -279,39 +243,25 @@
             margin: 16px 0;
         }
 
-        .action-btn-large {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-light);
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            border: none;
             border-radius: 10px;
             padding: 14px;
+            font-weight: 600;
+            cursor: pointer;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             gap: 6px;
-            cursor: pointer;
-            font-weight: 600;
             font-size: 12px;
             transition: all 0.2s ease;
         }
 
-        .action-btn-large.primary {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .action-btn-large:active {
+        .btn-primary:active {
             transform: scale(0.95);
-        }
-
-        /* DASHBOARD */
-        .dashboard-card {
-            background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);
-            border: 1px solid var(--border-light);
-            border-radius: 10px;
-            padding: 12px;
-            margin: 10px 0;
         }
 
         .dashboard-grid {
@@ -342,7 +292,6 @@
             color: var(--primary);
         }
 
-        /* LEDGER */
         .day-entry {
             background: var(--bg);
             border: 1px solid var(--border-light);
@@ -352,12 +301,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: all 0.2s ease;
-        }
-
-        .day-entry:hover {
-            box-shadow: var(--shadow-md);
-            border-color: var(--border);
         }
 
         .day-info {
@@ -367,7 +310,6 @@
         .day-date {
             font-size: 14px;
             font-weight: 700;
-            color: var(--text-primary);
             margin-bottom: 4px;
         }
 
@@ -397,17 +339,12 @@
             color: var(--danger);
         }
 
-        .day-status.needs-review {
-            background: rgba(245, 158, 11, 0.1);
-            color: var(--warning);
-        }
-
         .day-actions {
             display: flex;
             gap: 6px;
         }
 
-        .action-btn {
+        .btn-action {
             width: 32px;
             height: 32px;
             border: 1px solid var(--border-light);
@@ -418,19 +355,17 @@
             align-items: center;
             justify-content: center;
             font-size: 14px;
-            transition: all 0.2s ease;
         }
 
-        .action-btn:active {
+        .btn-action:active {
             background: var(--bg-tertiary);
         }
 
-        .action-btn.danger {
+        .btn-action.danger {
             color: var(--danger);
             border-color: var(--danger);
         }
 
-        /* MODALS */
         .modal {
             display: none;
             position: fixed;
@@ -455,7 +390,6 @@
             padding: 20px;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: var(--shadow-lg);
         }
 
         .modal-header {
@@ -478,114 +412,6 @@
             align-items: center;
             justify-content: center;
             font-size: 18px;
-            transition: all 0.2s ease;
-        }
-
-        .close-btn:active {
-            background: var(--bg-tertiary);
-        }
-
-        /* REVIEW TABLE */
-        .review-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 12px 0;
-            font-size: 12px;
-        }
-
-        .review-table th {
-            background: var(--bg-secondary);
-            padding: 10px;
-            text-align: left;
-            font-size: 10px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .review-table td {
-            padding: 10px;
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .review-table input, .review-table select {
-            width: 100%;
-            padding: 6px;
-            border: 1px solid var(--border-light);
-            border-radius: 6px;
-            font-size: 12px;
-            font-family: inherit;
-        }
-
-        .review-actions {
-            display: flex;
-            gap: 6px;
-            justify-content: flex-end;
-        }
-
-        .btn-delete {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--danger);
-            border: 1px solid var(--danger);
-            padding: 4px 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        /* BOTTOM NAV */
-        nav {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            background: var(--bg);
-            border-top: 1px solid var(--border-light);
-            padding: 8px 0;
-            z-index: 100;
-            box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.05);
-        }
-
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 10px;
-            color: var(--text-muted);
-            font-size: 10px;
-            cursor: pointer;
-            border: none;
-            background: none;
-            font-weight: 600;
-            transition: all 0.2s ease;
-        }
-
-        .nav-item.active {
-            color: var(--primary);
-        }
-
-        .nav-icon {
-            font-size: 18px;
-            margin-bottom: 3px;
-        }
-
-        /* LOADING SPINNER */
-        .spinner {
-            width: 24px;
-            height: 24px;
-            border: 3px solid var(--border);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
         }
 
         .form-group {
@@ -597,7 +423,6 @@
             font-weight: 600;
             margin-bottom: 6px;
             display: block;
-            color: var(--text-primary);
         }
 
         .form-input, .form-select {
@@ -626,14 +451,84 @@
             font-weight: 700;
             cursor: pointer;
             margin-top: 16px;
-            transition: all 0.2s ease;
         }
 
-        .btn-submit:active {
-            transform: scale(0.98);
+        .review-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 12px;
         }
 
-        /* SCROLLBAR */
+        .review-table th {
+            background: var(--bg-secondary);
+            padding: 10px;
+            text-align: left;
+            font-size: 10px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .review-table td {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .review-table input, .review-table select {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid var(--border-light);
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .btn-delete {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            padding: 4px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            background: var(--bg);
+            border-top: 1px solid var(--border-light);
+            padding: 8px 0;
+            z-index: 100;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            color: var(--text-muted);
+            font-size: 10px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-weight: 600;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        .nav-icon {
+            font-size: 18px;
+            margin-bottom: 3px;
+        }
+
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -646,7 +541,6 @@
 </head>
 <body>
     <div id="app">
-        <!-- HEADER -->
         <header>
             <div class="header-left">
                 <div class="user-avatar">📮</div>
@@ -655,12 +549,10 @@
                     <p id="headerDate">Today</p>
                 </div>
             </div>
-            <div class="header-icon" onclick="openSettingsModal()">⚙️</div>
         </header>
 
-        <!-- MAIN CONTENT -->
-        <main id="mainContent">
-            <!-- HOME PAGE -->
+        <main>
+            <!-- HOME -->
             <div id="homePage" class="page active">
                 <div class="balance-card">
                     <div class="balance-label">Today's Balance</div>
@@ -688,28 +580,26 @@
                     <div id="statusDiv" style="margin-top: 10px;"></div>
                 </div>
 
-                <div id="alertsContainer"></div>
-
-                <div class="upload-section" id="uploadSection" onclick="document.getElementById('pdfFile').click()">
-                    <div class="upload-icon">📤</div>
-                    <div class="upload-text">Upload Daily PDF</div>
-                    <div class="upload-subtext">Tap to select and extract data with AI</div>
+                <div class="upload-section" id="uploadSection" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">Scan PDF or Photo</div>
+                    <div class="upload-subtext">Upload daily account PDF or photo</div>
                 </div>
-                <input type="file" id="pdfFile" accept=".pdf" onchange="handlePDFUpload(event)">
+                <input type="file" id="fileInput" accept=".pdf,image/*" onchange="handleFileUpload(event)">
 
                 <div class="action-grid">
-                    <button class="action-btn-large primary" onclick="openAddTransaction()">
+                    <button class="btn-primary" onclick="openAddTransaction()">
                         <div>➕</div>
                         <div>Add Entry</div>
                     </button>
-                    <button class="action-btn-large" onclick="showNotification('📊 Reports coming soon')">
+                    <button class="btn-primary" onclick="showNotification('📊 Reports coming soon')">
                         <div>📊</div>
                         <div>Reports</div>
                     </button>
                 </div>
             </div>
 
-            <!-- DASHBOARD PAGE -->
+            <!-- DASHBOARD -->
             <div id="dashboardPage" class="page">
                 <div style="margin-top: 16px;">
                     <h2 style="font-size: 16px; margin-bottom: 12px; font-weight: 700;">📊 This Month</h2>
@@ -738,7 +628,7 @@
                 </div>
             </div>
 
-            <!-- LEDGER PAGE -->
+            <!-- LEDGER -->
             <div id="ledgerPage" class="page">
                 <div style="margin-top: 16px;">
                     <h2 style="font-size: 16px; margin-bottom: 12px; font-weight: 700;">📋 Ledger</h2>
@@ -747,7 +637,6 @@
             </div>
         </main>
 
-        <!-- BOTTOM NAV -->
         <nav>
             <button class="nav-item active" onclick="showPage('home')">
                 <div class="nav-icon">🏠</div>
@@ -761,31 +650,11 @@
                 <div class="nav-icon">📋</div>
                 <div>Ledger</div>
             </button>
-            <button class="nav-item" onclick="openSettingsModal()">
-                <div class="nav-icon">⚙️</div>
-                <div>Settings</div>
+            <button class="nav-item" onclick="showNotification('ℹ️ MVP v1.0')">
+                <div class="nav-icon">ℹ️</div>
+                <div>Info</div>
             </button>
         </nav>
-    </div>
-
-    <!-- SETTINGS MODAL -->
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span>⚙️ Settings</span>
-                <button class="close-btn" onclick="closeModal('settingsModal')">✕</button>
-            </div>
-            <div class="form-group">
-                <label class="form-label">🔑 Gemini API Key</label>
-                <input type="password" id="geminiKey" class="form-input" placeholder="Enter your Gemini API key">
-                <p style="font-size: 10px; color: var(--text-muted); margin-top: 6px;">Get it from <a href="https://ai.google.dev" target="_blank" style="color: var(--primary);">Google AI Studio</a></p>
-            </div>
-            <div class="form-group">
-                <label class="form-label">📊 Google Apps Script Endpoint</label>
-                <input type="text" id="scriptEndpoint" class="form-input" placeholder="Your Google Apps Script deployment URL">
-            </div>
-            <button class="btn-submit" onclick="saveSettings()">Save Settings</button>
-        </div>
     </div>
 
     <!-- ADD TRANSACTION MODAL -->
@@ -809,8 +678,8 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Amount</label>
-                    <input type="number" id="txnAmount" class="form-input" placeholder="₹ 0" required>
+                    <label class="form-label">Amount (₹)</label>
+                    <input type="number" id="txnAmount" class="form-input" placeholder="0" step="0.01" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Category</label>
@@ -823,40 +692,35 @@
         </div>
     </div>
 
-    <!-- REVIEW MODAL -->
+    <!-- OCR REVIEW MODAL -->
     <div class="modal" id="reviewModal">
         <div class="modal-content">
             <div class="modal-header">
-                <span>👁️ Review Extracted Data</span>
+                <span>👁️ Review Scanned Data</span>
                 <button class="close-btn" onclick="closeModal('reviewModal')">✕</button>
             </div>
             <div id="reviewContent"></div>
-            <button onclick="confirmExtractedData()" class="btn-submit" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%);">✓ Save All Entries</button>
+            <button onclick="confirmOCRData()" class="btn-submit" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%); margin-top: 16px;">✓ Save All Entries</button>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
     <script>
         const API_ENDPOINT = localStorage.getItem('scriptEndpoint') || 'https://script.google.com/macros/s/AKfycbwPo7Qt_JGKAijXBNyIjKYHEvYCCSNOtiIKjDvp13e0H6P781iNBxm5IK66mLa0ju0Z/exec';
-        const GEMINI_API_KEY = localStorage.getItem('geminiKey') || '';
 
-        let extractedTransactions = [];
-        let monthlyData = [];
-        let currentDate = new Date().toISOString().split('T')[0];
+        let ocrTransactions = [];
 
-        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             setHeaderDate();
             loadSummary();
             loadMonthlyData();
             loadLedger();
-            loadSettings();
         });
 
         function setHeaderDate() {
             const now = new Date();
             const options = { weekday: 'short', month: 'short', day: 'numeric' };
             document.getElementById('headerDate').textContent = now.toLocaleDateString('en-US', options);
-            currentDate = now.toISOString().split('T')[0];
         }
 
         function formatCurrency(amount) {
@@ -866,38 +730,9 @@
             });
         }
 
-        // ===== SETTINGS =====
-        function openSettingsModal() {
-            openModal('settingsModal');
-        }
-
-        function loadSettings() {
-            const key = localStorage.getItem('geminiKey');
-            const endpoint = localStorage.getItem('scriptEndpoint');
-            if (key) document.getElementById('geminiKey').value = key;
-            if (endpoint) document.getElementById('scriptEndpoint').value = endpoint;
-        }
-
-        function saveSettings() {
-            const key = document.getElementById('geminiKey').value;
-            const endpoint = document.getElementById('scriptEndpoint').value;
-            
-            if (!key || !endpoint) {
-                showNotification('❌ Please fill all fields');
-                return;
-            }
-
-            localStorage.setItem('geminiKey', key);
-            localStorage.setItem('scriptEndpoint', endpoint);
-            closeModal('settingsModal');
-            showNotification('✅ Settings saved!');
-        }
-
-        // ===== LOAD DATA =====
         async function loadSummary() {
             try {
-                const endpoint = localStorage.getItem('scriptEndpoint') || API_ENDPOINT;
-                const response = await fetch(`${endpoint}?action=getSummary`);
+                const response = await fetch(`${API_ENDPOINT}?action=getSummary`);
                 const data = await response.json();
 
                 if (data.success) {
@@ -907,7 +742,7 @@
                         document.getElementById('closingVal').textContent = '₹ 0';
                         document.getElementById('creditsVal').textContent = '₹ 0';
                         document.getElementById('debitsVal').textContent = '₹ 0';
-                        document.getElementById('statusDiv').innerHTML = '<div class="alert info"><span class="alert-icon">ℹ️</span><span>No entry for today - Upload PDF or add transactions manually</span></div>';
+                        document.getElementById('statusDiv').innerHTML = '<div class="alert info"><span>ℹ️</span><span>No entry for today</span></div>';
                     } else {
                         const opening = data.openingBalance || 0;
                         const closing = data.calculatedClosing || 0;
@@ -921,96 +756,75 @@
                         document.getElementById('creditsVal').textContent = formatCurrency(credits);
                         document.getElementById('debitsVal').textContent = formatCurrency(debits);
 
-                        // Validation
                         const isMatched = Math.abs(calculated - closing) < 1;
                         const statusClass = isMatched ? 'success' : 'warning';
-                        const statusText = isMatched ? '✅ Balanced' : '⚠️ Balance Mismatch';
-                        const message = isMatched ? 'Everything matches perfectly!' : `Calculated: ${formatCurrency(calculated)} vs Closing: ${formatCurrency(closing)}`;
-                        document.getElementById('statusDiv').innerHTML = `<div class="alert ${statusClass}"><span class="alert-icon">${isMatched ? '✓' : '⚠'}</span><span><strong>${statusText}</strong> - ${message}</span></div>`;
+                        const statusText = isMatched ? '✅ Balanced' : '⚠️ Mismatch';
+                        document.getElementById('statusDiv').innerHTML = `<div class="alert ${statusClass}"><span>${isMatched ? '✓' : '⚠'}</span><span>${statusText}</span></div>`;
                     }
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showNotification('❌ Error loading summary');
             }
         }
 
         async function loadMonthlyData() {
             try {
-                const endpoint = localStorage.getItem('scriptEndpoint') || API_ENDPOINT;
-                const response = await fetch(`${endpoint}?action=getMonthlyData&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`);
+                const response = await fetch(`${API_ENDPOINT}?action=getMonthlyData&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`);
                 const data = await response.json();
 
                 if (data.success && data.dailyData) {
-                    monthlyData = data.dailyData;
-                    updateDashboard();
+                    const monthlyData = data.dailyData;
+                    const totalCredits = monthlyData.reduce((sum, day) => sum + (day.credits || 0), 0);
+                    const totalDebits = monthlyData.reduce((sum, day) => sum + (day.debits || 0), 0);
+                    const lastDay = monthlyData[monthlyData.length - 1];
+                    const currentBalance = lastDay ? lastDay.closing : 0;
+
+                    document.getElementById('monthlyCredits').textContent = formatCurrency(totalCredits);
+                    document.getElementById('monthlyDebits').textContent = formatCurrency(totalDebits);
+                    document.getElementById('currentBalance').textContent = formatCurrency(currentBalance);
+                    document.getElementById('daysUploaded').textContent = monthlyData.length;
+
+                    const dailyHTML = monthlyData.slice(-7).reverse().map(day => {
+                        const status = day.status === 'balanced' ? 'verified' : 'mismatch';
+                        const statusIcon = day.status === 'balanced' ? '✅' : '⚠️';
+                        
+                        return `
+                            <div style="background: var(--bg); border: 1px solid var(--border-light); border-radius: 10px; padding: 12px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-weight: 700; font-size: 13px;">${day.date}</div>
+                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">📥 ${formatCurrency(day.credits)} | 📤 ${formatCurrency(day.debits)}</div>
+                                </div>
+                                <div class="day-status ${status}">${statusIcon}</div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    document.getElementById('dailyActivityList').innerHTML = dailyHTML || '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No data yet</p>';
                 }
             } catch (error) {
                 console.error('Error:', error);
             }
         }
 
-        function updateDashboard() {
-            if (!monthlyData || monthlyData.length === 0) {
-                document.getElementById('monthlyCredits').textContent = '₹ 0';
-                document.getElementById('monthlyDebits').textContent = '₹ 0';
-                document.getElementById('currentBalance').textContent = '₹ 0';
-                document.getElementById('daysUploaded').textContent = '0';
-                document.getElementById('dailyActivityList').innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No data yet</p>';
-                return;
-            }
-
-            const totalCredits = monthlyData.reduce((sum, day) => sum + (day.credits || 0), 0);
-            const totalDebits = monthlyData.reduce((sum, day) => sum + (day.debits || 0), 0);
-            const lastDay = monthlyData[monthlyData.length - 1];
-            const currentBalance = lastDay ? lastDay.closing : 0;
-
-            document.getElementById('monthlyCredits').textContent = formatCurrency(totalCredits);
-            document.getElementById('monthlyDebits').textContent = formatCurrency(totalDebits);
-            document.getElementById('currentBalance').textContent = formatCurrency(currentBalance);
-            document.getElementById('daysUploaded').textContent = monthlyData.length;
-
-            const dailyHTML = monthlyData.slice(-7).reverse().map(day => {
-                const status = day.status === 'balanced' ? 'verified' : day.status === 'mismatch' ? 'mismatch' : 'needs-review';
-                const statusIcon = day.status === 'balanced' ? '✅' : day.status === 'mismatch' ? '⚠️' : '🔄';
-                
-                return `
-                    <div class="dashboard-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <div style="font-weight: 700; font-size: 13px;">${day.date}</div>
-                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">📥 ${formatCurrency(day.credits)} | 📤 ${formatCurrency(day.debits)}</div>
-                            </div>
-                            <div class="day-status ${status}">${statusIcon}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-
-            document.getElementById('dailyActivityList').innerHTML = dailyHTML;
-        }
-
         async function loadLedger() {
             try {
-                const endpoint = localStorage.getItem('scriptEndpoint') || API_ENDPOINT;
-                const response = await fetch(`${endpoint}?action=getMonthlyData&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`);
+                const response = await fetch(`${API_ENDPOINT}?action=getMonthlyData&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}`);
                 const data = await response.json();
 
                 if (data.success && data.dailyData) {
                     const ledgerHTML = data.dailyData.reverse().map(day => {
-                        const status = day.status === 'balanced' ? 'verified' : day.status === 'mismatch' ? 'mismatch' : 'needs-review';
-                        const statusText = day.status === 'balanced' ? '✅ Verified' : day.status === 'mismatch' ? '⚠️ Mismatch' : '🔄 Needs Review';
+                        const status = day.status === 'balanced' ? 'verified' : 'mismatch';
+                        const statusText = day.status === 'balanced' ? '✅ Verified' : '⚠️ Mismatch';
                         
                         return `
                             <div class="day-entry">
                                 <div class="day-info">
                                     <div class="day-date">${day.date}</div>
-                                    <div class="day-summary">Opening: ${formatCurrency(day.opening)} | Credit: ${formatCurrency(day.credits)} | Debit: ${formatCurrency(day.debits)} | Closing: ${formatCurrency(day.closing)}</div>
+                                    <div class="day-summary">O: ${formatCurrency(day.opening)} | C: ${formatCurrency(day.credits)} | D: ${formatCurrency(day.debits)} | Closing: ${formatCurrency(day.closing)}</div>
                                     <div class="day-status ${status}">${statusText}</div>
                                 </div>
                                 <div class="day-actions">
-                                    <button class="action-btn" onclick="viewDay('${day.date}')">👁️</button>
-                                    <button class="action-btn danger" onclick="deleteDay('${day.date}')">🗑️</button>
+                                    <button class="btn-action danger" onclick="deleteDay('${day.date}')">🗑️</button>
                                 </div>
                             </div>
                         `;
@@ -1023,138 +837,97 @@
             }
         }
 
-        // ===== PDF UPLOAD & AI EXTRACTION =====
-        async function handlePDFUpload(event) {
+        async function handleFileUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
-            const key = localStorage.getItem('geminiKey');
-            if (!key) {
-                showNotification('❌ Please set Gemini API Key in settings first');
-                openSettingsModal();
-                return;
-            }
-
             const uploadSection = document.getElementById('uploadSection');
             uploadSection.classList.add('loading');
+            showNotification('📷 Scanning image...');
 
             try {
-                const base64 = await fileToBase64(file);
-                await extractWithGemini(base64, key);
+                // Use Tesseract to recognize text
+                const { data: { text } } = await Tesseract.recognize(file, 'eng', {
+                    logger: m => {
+                        if (m.status === 'recognizing') {
+                            // Update progress silently
+                        }
+                    }
+                });
+
+                extractDataFromText(text);
                 uploadSection.classList.remove('loading');
+                showNotification('✅ Scan complete! Review data');
+                showReviewModal();
             } catch (error) {
                 uploadSection.classList.remove('loading');
                 showNotification('❌ Error: ' + error.message);
             }
         }
 
-        function fileToBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result.split(',')[1]);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
+        function extractDataFromText(text) {
+            ocrTransactions = [];
+            let totalCredit = 0;
+            let totalDebit = 0;
 
-        async function extractWithGemini(base64Data, apiKey) {
-            try {
-                showNotification('🤖 AI is extracting data from PDF...');
+            const lines = text.split('\n');
 
-                const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                text: `You are a financial document analyzer. Extract the following information from this PDF document of daily postal account:
+            for (let line of lines) {
+                const cleanLine = line.toLowerCase().trim();
+                const numbers = line.match(/[\d,]+\.?\d*/g);
 
-1. Opening Balance
-2. All transactions (Credit entries like COD, Speed Post, IPPB Deposit, Recurring Deposit, Insurance etc.)
-3. All debit entries (Cash Deposit, Withdrawals, Commission, etc.)
-4. Closing Balance
-5. Date of the document
+                if (!numbers || numbers.length === 0) continue;
 
-For each transaction, provide:
-- Transaction name/description
-- Amount
-- Type (Credit or Debit)
-- Category (COD, Speed Post, IPPB, Withdrawal, etc.)
+                const value = parseFloat(numbers[0].replace(/,/g, ''));
+                if (isNaN(value) || value === 0) continue;
 
-Return ONLY a valid JSON object with this exact structure:
-{
-  "date": "YYYY-MM-DD",
-  "openingBalance": number,
-  "transactions": [
-    {
-      "name": "string",
-      "amount": number,
-      "type": "credit" or "debit",
-      "category": "string"
-    }
-  ],
-  "totalCredit": number,
-  "totalDebit": number,
-  "closingBalance": number
-}
+                let category = 'Other';
+                let type = 'credit';
 
-If you can't extract reliable data, return empty values. No explanations, only JSON.`
-                            }, {
-                                inlineData: {
-                                    mimeType: 'application/pdf',
-                                    data: base64Data
-                                }
-                            }]
-                        }]
-                    })
+                // Detect type from keywords
+                if (cleanLine.includes('debit') || cleanLine.includes('withdrawal') || cleanLine.includes('cash') || cleanLine.includes('commission')) {
+                    type = 'debit';
+                } else if (cleanLine.includes('credit') || cleanLine.includes('received') || cleanLine.includes('deposit') || cleanLine.includes('cod')) {
+                    type = 'credit';
+                }
+
+                // Detect category
+                if (cleanLine.includes('cod')) category = 'COD';
+                else if (cleanLine.includes('speed')) category = 'Speed Post';
+                else if (cleanLine.includes('ippb')) category = 'IPPB';
+                else if (cleanLine.includes('pli')) category = 'PLI';
+                else if (cleanLine.includes('rpli')) category = 'RPLI';
+                else if (cleanLine.includes('sukanya')) category = 'Sukanya';
+                else if (cleanLine.includes('withdrawal')) category = 'Withdrawal';
+                else if (cleanLine.includes('commission')) category = 'Commission';
+
+                ocrTransactions.push({
+                    date: new Date().toISOString().split('T')[0],
+                    name: line.substring(0, 40).trim() || category,
+                    amount: value,
+                    type: type,
+                    category: category
                 });
 
-                const result = await response.json();
-                
-                if (result.error) {
-                    throw new Error(result.error.message);
-                }
+                if (type === 'credit') totalCredit += value;
+                if (type === 'debit') totalDebit += value;
+            }
 
-                const content = result.candidates[0].content.parts[0].text;
-                
-                // Extract JSON from response
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
-                if (!jsonMatch) {
-                    throw new Error('Could not parse extracted data');
-                }
-
-                const extractedData = JSON.parse(jsonMatch[0]);
-                extractedTransactions = [{
-                    date: extractedData.date,
-                    name: 'Opening Balance',
-                    type: 'opening',
-                    amount: extractedData.openingBalance
-                }, ...extractedData.transactions, {
-                    date: extractedData.date,
-                    name: 'Closing Balance',
-                    type: 'closing',
-                    amount: extractedData.closingBalance
-                }];
-
-                showReviewModal();
-                showNotification('✅ Extraction complete! Review and confirm');
-            } catch (error) {
-                throw error;
+            if (ocrTransactions.length === 0) {
+                showNotification('⚠️ No data found in image. Please try another image or add manually.');
+                document.getElementById('fileInput').value = '';
             }
         }
 
         function showReviewModal() {
             const reviewHTML = `
                 <div class="alert success" style="margin-bottom: 16px;">
-                    <span class="alert-icon">✅</span>
-                    <span><strong>Successfully extracted ${extractedTransactions.length} entries</strong> - Review below and edit if needed</span>
+                    <span>✅</span>
+                    <span><strong>Found ${ocrTransactions.length} entries</strong> - Edit and confirm</span>
                 </div>
                 <table class="review-table">
                     <thead>
                         <tr>
-                            <th>Date</th>
                             <th>Description</th>
                             <th>Amount</th>
                             <th>Type</th>
@@ -1163,14 +936,13 @@ If you can't extract reliable data, return empty values. No explanations, only J
                         </tr>
                     </thead>
                     <tbody>
-                        ${extractedTransactions.map((txn, idx) => `
+                        ${ocrTransactions.map((txn, idx) => `
                             <tr>
-                                <td><input type="text" value="${txn.date}" onchange="extractedTransactions[${idx}].date = this.value"></td>
-                                <td><input type="text" value="${txn.name}" onchange="extractedTransactions[${idx}].name = this.value"></td>
-                                <td><input type="number" value="${txn.amount}" onchange="extractedTransactions[${idx}].amount = parseFloat(this.value)"></td>
+                                <td><input type="text" value="${txn.name}" onchange="ocrTransactions[${idx}].name = this.value"></td>
+                                <td><input type="number" value="${txn.amount}" onchange="ocrTransactions[${idx}].amount = parseFloat(this.value)"></td>
                                 <td>${txn.type}</td>
-                                <td><input type="text" value="${txn.category || txn.type}" onchange="extractedTransactions[${idx}].category = this.value"></td>
-                                <td><button type="button" class="btn-delete" onclick="extractedTransactions.splice(${idx}, 1); showReviewModal()">Delete</button></td>
+                                <td><input type="text" value="${txn.category}" onchange="ocrTransactions[${idx}].category = this.value"></td>
+                                <td><button type="button" class="btn-delete" onclick="ocrTransactions.splice(${idx}, 1); showReviewModal()">Delete</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1181,17 +953,19 @@ If you can't extract reliable data, return empty values. No explanations, only J
             openModal('reviewModal');
         }
 
-        async function confirmExtractedData() {
+        async function confirmOCRData() {
             try {
-                const endpoint = localStorage.getItem('scriptEndpoint') || API_ENDPOINT;
-                showNotification('💾 Saving extracted data...');
+                showNotification('💾 Saving entries...');
 
-                for (const txn of extractedTransactions) {
-                    if (txn.type === 'credit' || txn.type === 'debit') {
-                        const credit = txn.type === 'credit' ? txn.amount : 0;
-                        const debit = txn.type === 'debit' ? txn.amount : 0;
-                        
-                        await fetch(`${endpoint}?action=addTransaction&date=${txn.date}&name=${encodeURIComponent(txn.name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(txn.category || txn.type)}&confidence=90`);
+                for (const txn of ocrTransactions) {
+                    const credit = txn.type === 'credit' ? txn.amount : 0;
+                    const debit = txn.type === 'debit' ? txn.amount : 0;
+                    
+                    const response = await fetch(`${API_ENDPOINT}?action=addTransaction&date=${txn.date}&name=${encodeURIComponent(txn.name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(txn.category)}&confidence=80`);
+                    const data = await response.json();
+                    
+                    if (!data.success) {
+                        throw new Error(data.error || 'Failed to save');
                     }
                 }
                 
@@ -1199,15 +973,14 @@ If you can't extract reliable data, return empty values. No explanations, only J
                 loadSummary();
                 loadMonthlyData();
                 loadLedger();
-                showNotification('✅ All entries saved successfully!');
-                extractedTransactions = [];
-                document.getElementById('pdfFile').value = '';
+                showNotification('✅ All entries saved!');
+                ocrTransactions = [];
+                document.getElementById('fileInput').value = '';
             } catch (error) {
-                showNotification('❌ Error saving: ' + error.message);
+                showNotification('❌ Error: ' + error.message);
             }
         }
 
-        // ===== MANUAL TRANSACTION =====
         function openAddTransaction() {
             updateCategories();
             openModal('transactionModal');
@@ -1219,27 +992,25 @@ If you can't extract reliable data, return empty values. No explanations, only J
             
             if (type === 'credit') {
                 categorySelect.innerHTML = `
-                    <option value="">Select category...</option>
-                    <option value="Other Credits">Other Credits</option>
-                    <option value="COD">COD (Cash on Delivery)</option>
+                    <option value="">Select...</option>
+                    <option value="Other">Other Credits</option>
+                    <option value="COD">COD</option>
                     <option value="Speed Post">Speed Post</option>
-                    <option value="Registered">Registered / Parcel</option>
-                    <option value="IPPB">IPPB Deposit</option>
-                    <option value="Savings Deposit">Saving Bank Deposit</option>
-                    <option value="PLI">Postal Life Insurance (PLI)</option>
-                    <option value="RPLI">Rural PLI (RPLI)</option>
-                    <option value="Sukanya">Sukanya Samriddhi Yojana</option>
-                    <option value="Recurring">Recurring Deposit</option>
+                    <option value="IPPB">IPPB</option>
+                    <option value="Savings">Savings Deposit</option>
+                    <option value="PLI">PLI</option>
+                    <option value="RPLI">RPLI</option>
+                    <option value="Sukanya">Sukanya</option>
                 `;
             } else {
                 categorySelect.innerHTML = `
-                    <option value="">Select category...</option>
-                    <option value="Cash Deposit">Cash Deposit to Sub PO</option>
-                    <option value="Withdrawal">Saving Bank Withdrawal</option>
-                    <option value="IPPB Withdrawal">IPPB Withdrawal</option>
-                    <option value="Commission">Commission / Other Payments</option>
-                    <option value="RSAO Online">RSAO Online Debit</option>
-                    <option value="Other Debits">Other Debits</option>
+                    <option value="">Select...</option>
+                    <option value="Cash Deposit">Cash Deposit</option>
+                    <option value="Withdrawal">Withdrawal</option>
+                    <option value="IPPB">IPPB Withdrawal</option>
+                    <option value="Commission">Commission</option>
+                    <option value="RSAO">RSAO Debit</option>
+                    <option value="Other">Other Debits</option>
                 `;
             }
         }
@@ -1251,56 +1022,58 @@ If you can't extract reliable data, return empty values. No explanations, only J
             const type = document.getElementById('txnType').value;
             const amount = parseFloat(document.getElementById('txnAmount').value);
             const category = document.getElementById('txnCategory').value;
-            const endpoint = localStorage.getItem('scriptEndpoint') || API_ENDPOINT;
+            const date = new Date().toISOString().split('T')[0];
 
             const credit = type === 'credit' ? amount : 0;
             const debit = type === 'debit' ? amount : 0;
 
             try {
-                const response = await fetch(`${endpoint}?action=addTransaction&date=${currentDate}&name=${encodeURIComponent(name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(category)}&confidence=100`);
+                const response = await fetch(`${API_ENDPOINT}?action=addTransaction&date=${date}&name=${encodeURIComponent(name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(category)}&confidence=100`);
                 const data = await response.json();
 
                 if (data.success) {
                     closeModal('transactionModal');
                     document.querySelector('#transactionModal form').reset();
+                    
                     loadSummary();
                     loadMonthlyData();
                     loadLedger();
+                    
                     showNotification('✅ Transaction added!');
+                } else {
+                    showNotification('❌ Error: ' + data.error);
                 }
             } catch (error) {
                 showNotification('❌ Error: ' + error.message);
             }
         }
 
-        // ===== DELETE & ACTIONS =====
         async function deleteDay(date) {
-            if (!confirm(`Delete all entries for ${date}? This cannot be undone.`)) return;
+            if (!confirm(`Delete all entries for ${date}?`)) return;
 
             try {
-                const endpoint = localStorage.getItem('scriptEndpoint') || API_ENDPOINT;
-                await fetch(`${endpoint}?action=deleteDay&date=${date}`);
-                loadLedger();
-                loadMonthlyData();
-                loadSummary();
-                showNotification('🗑️ Day deleted');
+                const response = await fetch(`${API_ENDPOINT}?action=deleteDay&date=${date}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    loadLedger();
+                    loadMonthlyData();
+                    loadSummary();
+                    showNotification('🗑️ Day deleted');
+                } else {
+                    showNotification('❌ Error: ' + data.error);
+                }
             } catch (error) {
-                showNotification('❌ Error deleting day');
+                showNotification('❌ Error: ' + error.message);
             }
         }
 
-        function viewDay(date) {
-            showNotification(`👁️ Viewing details for ${date} - coming soon`);
-        }
-
-        // ===== UI HELPERS =====
         function showPage(page) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
             
-            if (page === 'home') {
-                document.getElementById('homePage').classList.add('active');
-            } else if (page === 'dashboard') {
+            if (page === 'home') document.getElementById('homePage').classList.add('active');
+            else if (page === 'dashboard') {
                 document.getElementById('dashboardPage').classList.add('active');
                 loadMonthlyData();
             } else if (page === 'ledger') {
