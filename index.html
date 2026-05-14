@@ -624,9 +624,14 @@
 
 <script>
 /* ──────────────────────────────────────────────────────────
-   CONFIG  — reusing existing deployment
+   CONFIG — Sheety API (Google Sheets REST API)
 ────────────────────────────────────────────────────────── */
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-N5O3WyXcp4IjdDShCxXmwIyAnnJT4ivZSdbgJ9-BS31lpnAYk8lMOJ-jxiAgWnl8/exec';
+const SHEETY_BASE = 'https://api.sheety.co/ac3448d223daff0baf05c45c2f908aed/dailyAccountAssistant';
+const API_ENDPOINTS = {
+  rawTransactions: SHEETY_BASE + '/rawTransactions',
+  dailyLedger: SHEETY_BASE + '/dailyLedger',
+  alerts: SHEETY_BASE + '/alerts'
+};
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -666,16 +671,31 @@ function switchPage(page) {
 /* ──────────────────────────────────────────────────────────
    API HELPERS
 ────────────────────────────────────────────────────────── */
-async function apiGet(params) {
-  const url = SCRIPT_URL + '?' + new URLSearchParams(params);
-  const r = await fetch(url);
-  return r.json();
+async function loadAllTransactions() {
+  const r = await fetch(API_ENDPOINTS.rawTransactions);
+  const data = await r.json();
+  return (data.rawTransactions || []).map(row => ({
+    id: row.id,
+    date: row.date,
+    name: row.transactionName,
+    credit: parseFloat(row.credit) || 0,
+    debit: parseFloat(row.debit) || 0,
+    category: row.category || 'General'
+  }));
 }
 
-async function apiPost(body) {
-  const r = await fetch(SCRIPT_URL, {
+async function addTransactionToSheet(date, name, credit, debit, category) {
+  const r = await fetch(API_ENDPOINTS.rawTransactions, {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      rawTransaction: {
+        date,
+        transactionName: name,
+        credit: credit || 0,
+        debit: debit || 0,
+        category: category || 'General'
+      }
+    }),
     headers: { 'Content-Type': 'application/json' }
   });
   return r.json();
@@ -686,19 +706,23 @@ async function apiPost(body) {
 ────────────────────────────────────────────────────────── */
 async function loadHome() {
   try {
-    const data = await apiGet({ action: 'getSummary', month: monthStr() });
-    if (!data.success) throw new Error(data.error);
+    const txs = await loadAllTransactions();
+    const month = monthStr();
+    const filtered = txs.filter(t => t.date.substring(0, 7) === month);
 
-    const c = data.credit || 0, d = data.debit || 0;
+    const c = filtered.reduce((sum, t) => sum + t.credit, 0);
+    const d = filtered.reduce((sum, t) => sum + t.debit, 0);
+
     document.getElementById('balanceLabel').textContent =
       'Monthly Balance (' + monthLabel() + ')';
     document.getElementById('mainBalance').textContent = '₹ ' + fmt(c - d);
     document.getElementById('homeCredit').textContent  = '₹ ' + fmt(c);
     document.getElementById('homeDebit').textContent   = '₹ ' + fmt(d);
 
-    cachedTxs = (data.transactions || []).slice().reverse();
+    cachedTxs = txs.slice().reverse();
     renderTxList(document.getElementById('recentList'), cachedTxs.slice(0, 6));
   } catch(e) {
+    console.error(e);
     document.getElementById('recentList').innerHTML = errHTML('Could not load', 'Check internet connection');
   }
 }
@@ -709,20 +733,25 @@ async function loadHome() {
 async function loadDashboard() {
   document.getElementById('dashMonth').textContent = monthLabel();
   try {
-    const data = await apiGet({ action: 'getSummary', month: monthStr() });
-    if (!data.success) throw new Error(data.error);
+    const txs = await loadAllTransactions();
+    const month = monthStr();
+    const filtered = txs.filter(t => t.date.substring(0, 7) === month);
 
-    const c = data.credit || 0, d = data.debit || 0, bal = c - d;
+    const c = filtered.reduce((sum, t) => sum + t.credit, 0);
+    const d = filtered.reduce((sum, t) => sum + t.debit, 0);
+    const bal = c - d;
+
     document.getElementById('dashCredit').textContent  = '₹ ' + fmt(c);
     document.getElementById('dashDebit').textContent   = '₹ ' + fmt(d);
-    document.getElementById('dashCount').textContent   = (data.transactions || []).length;
+    document.getElementById('dashCount').textContent   = filtered.length;
     const balEl = document.getElementById('dashBalance');
     balEl.textContent = (bal >= 0 ? '+' : '') + '₹ ' + fmt(bal);
     balEl.style.color = bal >= 0 ? 'var(--green)' : 'var(--red)';
 
     renderBar(c, d, bal);
-    renderCategories(data.transactions || []);
+    renderCategories(filtered);
   } catch(e) {
+    console.error(e);
     document.getElementById('catBreakdown').innerHTML = errHTML('Could not load');
   }
 }
@@ -795,11 +824,10 @@ async function loadLedger() {
   const el = document.getElementById('ledgerList');
   el.innerHTML = loadingHTML();
   try {
-    const data = await apiGet({ action: 'getSummary', month: monthStr() });
-    if (!data.success) throw new Error(data.error);
-    cachedTxs = data.transactions || [];
+    cachedTxs = await loadAllTransactions();
     renderLedger();
   } catch(e) {
+    console.error(e);
     el.innerHTML = errHTML('Could not load');
   }
 }
@@ -843,10 +871,20 @@ function renderLedger() {
 async function deleteDay(date) {
   if (!confirm(`Delete all transactions for ${fmtDate(date)}?`)) return;
   try {
-    const res = await apiPost({ action: 'deleteDay', date });
-    if (res.success) { showToast('Day deleted ✓'); loadLedger(); loadHome(); }
-    else showToast('Error: ' + (res.error || 'Unknown'));
-  } catch(e) { showToast('Connection error'); }
+    const txs = await loadAllTransactions();
+    const toDelete = txs.filter(t => t.date === date);
+
+    for (const tx of toDelete) {
+      await fetch(`${API_ENDPOINTS.rawTransactions}/${tx.id}`, { method: 'DELETE' });
+    }
+
+    showToast(`Deleted ${toDelete.length} transaction(s) ✓`);
+    loadLedger();
+    loadHome();
+  } catch(e) {
+    console.error(e);
+    showToast('Error: ' + (e.message || 'Unknown'));
+  }
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -872,21 +910,25 @@ async function submitTransaction() {
   btn.disabled = true; btn.textContent = 'Saving…';
 
   try {
-    await apiPost({
-      action: 'addTransaction',
-      date, name, category,
-      credit: txType === 'credit' ? amount : 0,
-      debit:  txType === 'debit'  ? amount : 0,
-    });
-  } catch(e) { }
-
-  showToast('Saved ✓');
-  closeModal('addModal');
-  document.getElementById('txName').value   = '';
-  document.getElementById('txAmount').value = '';
-  await new Promise(r => setTimeout(r, 1000));
-  loadHome();
-  finally    { btn.disabled = false; btn.textContent = 'Save Transaction'; }
+    await addTransactionToSheet(
+      date, name,
+      txType === 'credit' ? amount : 0,
+      txType === 'debit' ? amount : 0,
+      category
+    );
+    showToast('Saved ✓');
+    closeModal('addModal');
+    document.getElementById('txName').value   = '';
+    document.getElementById('txAmount').value = '';
+    await new Promise(r => setTimeout(r, 1000));
+    loadHome();
+  } catch(e) {
+    console.error(e);
+    showToast('Error: ' + (e.message || 'Unknown'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Transaction';
+  }
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -966,17 +1008,17 @@ function parsePdf(text) {
     }
     if (!dateFound) continue;
 
-    // Extract all positive numbers (not the year)
+    // Extract all positive numbers >= 50 (filter out small numbers like line numbers, ref numbers)
     const nums = [...line.matchAll(/\b(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+\.\d{1,2})\b/g)]
       .map(m => parseFloat(m[1].replace(/,/g,'')))
-      .filter(n => n >= 1 && n < 10_000_000 && !String(n).match(/^\d{4}$/));
+      .filter(n => n >= 50 && n < 10_000_000 && !String(n).match(/^\d{4}$/));
 
     if (!nums.length) continue;
 
     // Heuristic: look for Cr / Dr markers
     const up = line.toUpperCase();
-    const isCr = /\bCR\b|\bCREDIT\b|\bDEPOSIT\b|\bRECEIPT\b|\bCASH IN\b/.test(up);
-    const isDr = /\bDR\b|\bDEBIT\b|\bWITHDRAW|\bCASH OUT\b|\bPAYMENT\b|\bCHRGS\b|\bFEE\b/.test(up);
+    const isCr = /\bCR\b|\bCREDIT\b|\bDEPOSIT\b|\bRECEIPT\b|\bCASH IN\b|\bIN\b|\bRECV\b/.test(up);
+    const isDr = /\bDR\b|\bDEBIT\b|\bWITHDRAW|\bCASH OUT\b|\bPAYMENT\b|\bCHRGS\b|\bFEE\b|\bOUT\b|\bDISB\b/.test(up);
 
     // Clean description: strip the date, strip numbers, normalise spaces
     let desc = line
@@ -987,7 +1029,8 @@ function parsePdf(text) {
     if (desc.length < 2) desc = 'Transaction';
     desc = desc.substring(0, 55);
 
-    const amount = nums[0];
+    // Use largest amount as the transaction amount
+    const amount = Math.max(...nums);
     rows.push({
       date:        dateFound,
       description: desc,
@@ -1057,24 +1100,27 @@ async function savePdfRows() {
   const btn = document.getElementById('savePdfBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  let ok = 0;
-  for (const r of valid) {
-    try {
-      await apiPost({
-        action:   'addTransaction',
-        date:     r.date,
-        name:     r.description,
-        credit:   r.credit  || 0,
-        debit:    r.debit   || 0,
-        category: 'Statement Import',
-      });
-      ok++;
-    } catch { }
+  try {
+    for (const r of valid) {
+      await addTransactionToSheet(
+        r.date,
+        r.description,
+        r.credit || 0,
+        r.debit || 0,
+        'Statement Import'
+      );
+    }
+    showToast(`Saved ${valid.length} ✓`);
+    closeModal('pdfModal');
+    await new Promise(r => setTimeout(r, 1500));
+    loadHome();
+  } catch(e) {
+    console.error('PDF save error:', e);
+    showToast('Error saving: ' + (e.message || 'Unknown'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save All to Sheet';
   }
-
-  btn.disabled = false; btn.textContent = 'Save All to Sheet';
-  showToast(`Saved ${valid.length} ✓`);
-  if (valid.length) { closeModal('pdfModal'); await new Promise(r => setTimeout(r, 1500)); loadHome(); }
 }
 
 /* ──────────────────────────────────────────────────────────
