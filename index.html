@@ -453,46 +453,6 @@
             margin-top: 16px;
         }
 
-        .review-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 12px 0;
-            font-size: 12px;
-        }
-
-        .review-table th {
-            background: var(--bg-secondary);
-            padding: 10px;
-            text-align: left;
-            font-size: 10px;
-            font-weight: 600;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .review-table td {
-            padding: 10px;
-            border-bottom: 1px solid var(--border-light);
-        }
-
-        .review-table input, .review-table select {
-            width: 100%;
-            padding: 6px;
-            border: 1px solid var(--border-light);
-            border-radius: 6px;
-            font-size: 12px;
-        }
-
-        .btn-delete {
-            background: rgba(239, 68, 68, 0.1);
-            color: var(--danger);
-            border: 1px solid var(--danger);
-            padding: 4px 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
         nav {
             position: fixed;
             bottom: 0;
@@ -579,13 +539,6 @@
                     </div>
                     <div id="statusDiv" style="margin-top: 10px;"></div>
                 </div>
-
-                <div class="upload-section" id="uploadSection" onclick="document.getElementById('fileInput').click()">
-                    <div class="upload-icon">📷</div>
-                    <div class="upload-text">Scan PDF or Photo</div>
-                    <div class="upload-subtext">Upload daily account PDF or photo</div>
-                </div>
-                <input type="file" id="fileInput" accept=".pdf,image/*" onchange="handleFileUpload(event)">
 
                 <div class="action-grid">
                     <button class="btn-primary" onclick="openAddTransaction()">
@@ -692,35 +645,15 @@
         </div>
     </div>
 
-    <!-- OCR REVIEW MODAL -->
-    <div class="modal" id="reviewModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <span>👁️ Review Scanned Data</span>
-                <button class="close-btn" onclick="closeModal('reviewModal')">✕</button>
-            </div>
-            <div id="reviewContent"></div>
-            <button onclick="confirmOCRData()" class="btn-submit" style="background: linear-gradient(135deg, var(--success) 0%, #34d399 100%); margin-top: 16px;">✓ Save All Entries</button>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
     <script>
-        // Configuration
+        // ===== CONFIG =====
         const API_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwPo7Qt_JGKAijXBNyIjKYHEvYCCSNOtiIKjDvp13e0H6P781iNBxm5IK66mLa0ju0Z/exec';
-        let ocrTransactions = [];
         let currentDate = new Date().toISOString().split('T')[0];
 
-        // Initialize
+        // ===== INIT =====
         document.addEventListener('DOMContentLoaded', function() {
-            try {
-                setHeaderDate();
-                loadSummary();
-                loadMonthlyData();
-                loadLedger();
-            } catch (error) {
-                console.error('Initialization error:', error);
-            }
+            setHeaderDate();
+            loadAllData();
         });
 
         function setHeaderDate() {
@@ -731,17 +664,30 @@
         }
 
         function formatCurrency(amount) {
-            if (!amount) amount = 0;
+            if (!amount || isNaN(amount)) amount = 0;
             return '₹ ' + parseFloat(amount).toLocaleString('en-IN', {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             });
         }
 
+        // ===== LOAD ALL DATA =====
+        function loadAllData() {
+            loadSummary();
+            loadMonthlyData();
+            loadLedger();
+        }
+
+        // ===== LOAD TODAY SUMMARY =====
         async function loadSummary() {
             try {
-                const response = await fetch(`${API_ENDPOINT}?action=getSummary`);
+                const url = `${API_ENDPOINT}?action=getSummary`;
+                console.log('Fetching summary from:', url);
+                
+                const response = await fetch(url);
                 const data = await response.json();
+                
+                console.log('Summary response:', data);
 
                 if (data && data.success) {
                     if (data.status === 'no_entry') {
@@ -756,7 +702,6 @@
                         const closing = parseFloat(data.calculatedClosing) || 0;
                         const credits = parseFloat(data.totalCredit) || 0;
                         const debits = parseFloat(data.totalDebit) || 0;
-                        const calculated = opening + credits - debits;
 
                         document.getElementById('balanceValue').textContent = formatCurrency(closing);
                         document.getElementById('openingVal').textContent = formatCurrency(opening);
@@ -764,6 +709,7 @@
                         document.getElementById('creditsVal').textContent = formatCurrency(credits);
                         document.getElementById('debitsVal').textContent = formatCurrency(debits);
 
+                        const calculated = opening + credits - debits;
                         const isMatched = Math.abs(calculated - closing) < 1;
                         const statusClass = isMatched ? 'success' : 'warning';
                         const statusText = isMatched ? '✅ Balanced' : '⚠️ Mismatch';
@@ -771,59 +717,69 @@
                     }
                 }
             } catch (error) {
-                console.error('Error loading summary:', error);
+                console.error('loadSummary error:', error);
             }
         }
 
+        // ===== LOAD MONTHLY DATA =====
         async function loadMonthlyData() {
             try {
                 const month = new Date().getMonth() + 1;
                 const year = new Date().getFullYear();
-                const response = await fetch(`${API_ENDPOINT}?action=getMonthlyData&month=${month}&year=${year}`);
+                const url = `${API_ENDPOINT}?action=getMonthlyData&month=${month}&year=${year}`;
+                
+                console.log('Fetching monthly data from:', url);
+                
+                const response = await fetch(url);
                 const data = await response.json();
+                
+                console.log('Monthly data response:', data);
 
-                if (data && data.success && data.dailyData) {
-                    const monthlyData = data.dailyData;
-                    const totalCredits = monthlyData.reduce((sum, day) => sum + (parseFloat(day.credits) || 0), 0);
-                    const totalDebits = monthlyData.reduce((sum, day) => sum + (parseFloat(day.debits) || 0), 0);
-                    const lastDay = monthlyData[monthlyData.length - 1];
+                if (data && data.success && data.dailyData && data.dailyData.length > 0) {
+                    const dailyData = data.dailyData;
+                    const totalCredits = dailyData.reduce((sum, d) => sum + (parseFloat(d.credits) || 0), 0);
+                    const totalDebits = dailyData.reduce((sum, d) => sum + (parseFloat(d.debits) || 0), 0);
+                    const lastDay = dailyData[dailyData.length - 1];
                     const currentBalance = lastDay ? parseFloat(lastDay.closing) || 0 : 0;
 
                     document.getElementById('monthlyCredits').textContent = formatCurrency(totalCredits);
                     document.getElementById('monthlyDebits').textContent = formatCurrency(totalDebits);
                     document.getElementById('currentBalance').textContent = formatCurrency(currentBalance);
-                    document.getElementById('daysUploaded').textContent = monthlyData.length;
+                    document.getElementById('daysUploaded').textContent = dailyData.length;
 
-                    const dailyHTML = monthlyData.slice(-7).reverse().map(day => {
+                    const dailyHTML = dailyData.slice(-7).reverse().map(day => {
                         const status = day.status === 'balanced' ? 'verified' : 'mismatch';
                         const statusIcon = day.status === 'balanced' ? '✅' : '⚠️';
                         
                         return `
-                            <div style="background: var(--bg); border: 1px solid var(--border-light); border-radius: 10px; padding: 12px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <div style="font-weight: 700; font-size: 13px;">${day.date}</div>
-                                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">📥 ${formatCurrency(day.credits)} | 📤 ${formatCurrency(day.debits)}</div>
-                                </div>
-                                <div class="day-status ${status}">${statusIcon}</div>
+                            <div style="background: var(--bg); border: 1px solid var(--border-light); border-radius: 10px; padding: 12px; margin: 10px 0;">
+                                <div style="font-weight: 700; font-size: 13px;">${day.date}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">📥 ${formatCurrency(day.credits)} | 📤 ${formatCurrency(day.debits)}</div>
+                                <div style="margin-top: 6px; display: flex; align-items: center; gap: 4px; font-size: 11px;"><span>${statusIcon}</span><span>${status === 'verified' ? 'Verified' : 'Mismatch'}</span></div>
                             </div>
                         `;
                     }).join('');
 
                     document.getElementById('dailyActivityList').innerHTML = dailyHTML || '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No data yet</p>';
+                } else {
+                    document.getElementById('dailyActivityList').innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No data yet</p>';
                 }
             } catch (error) {
-                console.error('Error loading monthly data:', error);
+                console.error('loadMonthlyData error:', error);
             }
         }
 
+        // ===== LOAD LEDGER =====
         async function loadLedger() {
             try {
                 const month = new Date().getMonth() + 1;
                 const year = new Date().getFullYear();
-                const response = await fetch(`${API_ENDPOINT}?action=getMonthlyData&month=${month}&year=${year}`);
+                const url = `${API_ENDPOINT}?action=getMonthlyData&month=${month}&year=${year}`;
+                
+                const response = await fetch(url);
                 const data = await response.json();
 
-                if (data && data.success && data.dailyData) {
+                if (data && data.success && data.dailyData && data.dailyData.length > 0) {
                     const ledgerHTML = data.dailyData.reverse().map(day => {
                         const status = day.status === 'balanced' ? 'verified' : 'mismatch';
                         const statusText = day.status === 'balanced' ? '✅ Verified' : '⚠️ Mismatch';
@@ -842,141 +798,16 @@
                         `;
                     }).join('');
                     
-                    document.getElementById('ledgerList').innerHTML = ledgerHTML || '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No entries yet</p>';
+                    document.getElementById('ledgerList').innerHTML = ledgerHTML || '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No entries</p>';
+                } else {
+                    document.getElementById('ledgerList').innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">No entries</p>';
                 }
             } catch (error) {
-                console.error('Error loading ledger:', error);
+                console.error('loadLedger error:', error);
             }
         }
 
-        async function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const uploadSection = document.getElementById('uploadSection');
-            uploadSection.classList.add('loading');
-            showNotification('📷 Scanning...');
-
-            try {
-                const { data: { text } } = await Tesseract.recognize(file, 'eng', {
-                    logger: m => { /* silent */ }
-                });
-
-                extractDataFromText(text);
-                uploadSection.classList.remove('loading');
-                showNotification('✅ Scan complete!');
-                showReviewModal();
-            } catch (error) {
-                uploadSection.classList.remove('loading');
-                showNotification('❌ Scan error: ' + (error.message || 'Unknown error'));
-            }
-        }
-
-        function extractDataFromText(text) {
-            ocrTransactions = [];
-            const lines = text.split('\n');
-
-            for (let line of lines) {
-                const cleanLine = line.toLowerCase().trim();
-                const numbers = line.match(/[\d,]+\.?\d*/g);
-
-                if (!numbers || numbers.length === 0) continue;
-
-                const value = parseFloat(numbers[0].replace(/,/g, ''));
-                if (isNaN(value) || value === 0) continue;
-
-                let category = 'Other';
-                let type = 'credit';
-
-                if (cleanLine.includes('debit') || cleanLine.includes('withdrawal') || cleanLine.includes('cash') || cleanLine.includes('commission')) {
-                    type = 'debit';
-                }
-
-                if (cleanLine.includes('cod')) category = 'COD';
-                else if (cleanLine.includes('speed')) category = 'Speed Post';
-                else if (cleanLine.includes('ippb')) category = 'IPPB';
-                else if (cleanLine.includes('pli')) category = 'PLI';
-                else if (cleanLine.includes('rpli')) category = 'RPLI';
-
-                ocrTransactions.push({
-                    date: currentDate,
-                    name: line.substring(0, 40).trim() || category,
-                    amount: value,
-                    type: type,
-                    category: category
-                });
-            }
-
-            if (ocrTransactions.length === 0) {
-                showNotification('⚠️ No data found. Try another image or add manually.');
-                document.getElementById('fileInput').value = '';
-            }
-        }
-
-        function showReviewModal() {
-            const reviewHTML = `
-                <div class="alert success" style="margin-bottom: 16px;">
-                    <span>✅</span>
-                    <span><strong>Found ${ocrTransactions.length} entries</strong></span>
-                </div>
-                <table class="review-table">
-                    <thead>
-                        <tr>
-                            <th>Description</th>
-                            <th>Amount</th>
-                            <th>Type</th>
-                            <th>Category</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${ocrTransactions.map((txn, idx) => `
-                            <tr>
-                                <td><input type="text" value="${txn.name}" onchange="ocrTransactions[${idx}].name = this.value"></td>
-                                <td><input type="number" value="${txn.amount}" onchange="ocrTransactions[${idx}].amount = parseFloat(this.value)"></td>
-                                <td>${txn.type}</td>
-                                <td><input type="text" value="${txn.category}" onchange="ocrTransactions[${idx}].category = this.value"></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            `;
-            
-            document.getElementById('reviewContent').innerHTML = reviewHTML;
-            openModal('reviewModal');
-        }
-
-        async function confirmOCRData() {
-            try {
-                showNotification('💾 Saving...');
-
-                for (const txn of ocrTransactions) {
-                    const credit = txn.type === 'credit' ? txn.amount : 0;
-                    const debit = txn.type === 'debit' ? txn.amount : 0;
-                    
-                    const url = `${API_ENDPOINT}?action=addTransaction&date=${txn.date}&name=${encodeURIComponent(txn.name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(txn.category)}&confidence=80`;
-                    const response = await fetch(url);
-                    const data = await response.json();
-                    
-                    if (!data.success) {
-                        throw new Error(data.error || 'Save failed');
-                    }
-                }
-                
-                closeModal('reviewModal');
-                setTimeout(() => {
-                    loadSummary();
-                    loadMonthlyData();
-                    loadLedger();
-                }, 500);
-                
-                showNotification('✅ Saved!');
-                ocrTransactions = [];
-                document.getElementById('fileInput').value = '';
-            } catch (error) {
-                showNotification('❌ Error: ' + error.message);
-            }
-        }
-
+        // ===== ADD TRANSACTION =====
         function openAddTransaction() {
             updateCategories();
             openModal('transactionModal');
@@ -993,18 +824,20 @@
                     <option value="COD">COD</option>
                     <option value="Speed Post">Speed Post</option>
                     <option value="IPPB">IPPB</option>
-                    <option value="Savings">Savings Deposit</option>
+                    <option value="Savings">Savings</option>
                     <option value="PLI">PLI</option>
                     <option value="RPLI">RPLI</option>
+                    <option value="Sukanya">Sukanya</option>
                 `;
             } else {
                 categorySelect.innerHTML = `
                     <option value="">Select...</option>
                     <option value="Cash Deposit">Cash Deposit</option>
                     <option value="Withdrawal">Withdrawal</option>
-                    <option value="IPPB">IPPB Withdrawal</option>
+                    <option value="IPPB">IPPB</option>
                     <option value="Commission">Commission</option>
-                    <option value="RSAO">RSAO Debit</option>
+                    <option value="RSAO">RSAO</option>
+                    <option value="Other">Other</option>
                 `;
             }
         }
@@ -1021,25 +854,32 @@
             const debit = type === 'debit' ? amount : 0;
 
             try {
+                showNotification('💾 Saving...');
+                
                 const url = `${API_ENDPOINT}?action=addTransaction&date=${currentDate}&name=${encodeURIComponent(name)}&credit=${credit}&debit=${debit}&category=${encodeURIComponent(category)}&confidence=100`;
+                
+                console.log('Adding transaction:', url);
+                
                 const response = await fetch(url);
                 const data = await response.json();
+
+                console.log('Add transaction response:', data);
 
                 if (data.success) {
                     closeModal('transactionModal');
                     document.querySelector('#transactionModal form').reset();
                     
-                    setTimeout(() => {
-                        loadSummary();
-                        loadMonthlyData();
-                        loadLedger();
-                    }, 500);
-                    
                     showNotification('✅ Added!');
+                    
+                    // Reload data after a short delay
+                    setTimeout(() => {
+                        loadAllData();
+                    }, 500);
                 } else {
                     showNotification('❌ Error: ' + (data.error || 'Unknown'));
                 }
             } catch (error) {
+                console.error('submitTransaction error:', error);
                 showNotification('❌ Error: ' + error.message);
             }
         }
@@ -1048,22 +888,25 @@
             if (!confirm(`Delete all entries for ${date}?`)) return;
 
             try {
-                const response = await fetch(`${API_ENDPOINT}?action=deleteDay&date=${date}`);
+                const url = `${API_ENDPOINT}?action=deleteDay&date=${date}`;
+                const response = await fetch(url);
                 const data = await response.json();
 
                 if (data.success) {
-                    setTimeout(() => {
-                        loadLedger();
-                        loadMonthlyData();
-                        loadSummary();
-                    }, 500);
                     showNotification('🗑️ Deleted');
+                    setTimeout(() => {
+                        loadAllData();
+                    }, 500);
+                } else {
+                    showNotification('❌ Error: ' + (data.error || 'Delete failed'));
                 }
             } catch (error) {
+                console.error('deleteDay error:', error);
                 showNotification('❌ Error: ' + error.message);
             }
         }
 
+        // ===== UI FUNCTIONS =====
         function showPage(page) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
@@ -1085,14 +928,16 @@
         }
 
         function openModal(modalId) {
-            if (document.getElementById(modalId)) {
-                document.getElementById(modalId).classList.add('active');
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('active');
             }
         }
 
         function closeModal(modalId) {
-            if (document.getElementById(modalId)) {
-                document.getElementById(modalId).classList.remove('active');
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.remove('active');
             }
         }
 
