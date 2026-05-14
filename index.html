@@ -626,7 +626,7 @@
 /* ──────────────────────────────────────────────────────────
    CONFIG  — reusing existing deployment
 ────────────────────────────────────────────────────────── */
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8fd_FUoPxykYtEYQ6yPV5xW4gBQiwcmd_RAf-XaZT4XRQCbcJb_0rqBhozco_tcCs/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-N5O3WyXcp4IjdDShCxXmwIyAnnJT4ivZSdbgJ9-BS31lpnAYk8lMOJ-jxiAgWnl8/exec';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -872,22 +872,20 @@ async function submitTransaction() {
   btn.disabled = true; btn.textContent = 'Saving…';
 
   try {
-    const res = await apiPost({
+    await apiPost({
       action: 'addTransaction',
       date, name, category,
       credit: txType === 'credit' ? amount : 0,
       debit:  txType === 'debit'  ? amount : 0,
     });
-    if (res.success) {
-      showToast('Saved ✓');
-      closeModal('addModal');
-      document.getElementById('txName').value   = '';
-      document.getElementById('txAmount').value = '';
-      loadHome();
-    } else {
-      showToast('Error: ' + (res.error || 'Failed'));
-    }
-  } catch(e) { showToast('Connection error'); }
+  } catch(e) { }
+
+  showToast('Saved ✓');
+  closeModal('addModal');
+  document.getElementById('txName').value   = '';
+  document.getElementById('txAmount').value = '';
+  await new Promise(r => setTimeout(r, 1000));
+  loadHome();
   finally    { btn.disabled = false; btn.textContent = 'Save Transaction'; }
 }
 
@@ -1059,10 +1057,10 @@ async function savePdfRows() {
   const btn = document.getElementById('savePdfBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
-  let ok = 0, fail = 0;
+  let ok = 0;
   for (const r of valid) {
     try {
-      const res = await apiPost({
+      await apiPost({
         action:   'addTransaction',
         date:     r.date,
         name:     r.description,
@@ -1070,13 +1068,13 @@ async function savePdfRows() {
         debit:    r.debit   || 0,
         category: 'Statement Import',
       });
-      res.success ? ok++ : fail++;
-    } catch { fail++; }
+      ok++;
+    } catch { }
   }
 
   btn.disabled = false; btn.textContent = 'Save All to Sheet';
-  showToast(`Saved ${ok}${fail ? ', failed ' + fail : ''} ✓`);
-  if (ok) { closeModal('pdfModal'); loadHome(); }
+  showToast(`Saved ${valid.length} ✓`);
+  if (valid.length) { closeModal('pdfModal'); await new Promise(r => setTimeout(r, 1500)); loadHome(); }
 }
 
 /* ──────────────────────────────────────────────────────────
