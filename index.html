@@ -486,14 +486,13 @@
 </div>
 
 <!-- ═══════════════════════════════════════════
-     LEDGER PAGE
+     LEDGER PAGE - Daily Ledger Summary
 ═══════════════════════════════════════════ -->
 <div class="page" id="page-ledger">
 
-  <div class="filter-row">
-    <div class="filter-chip active" onclick="filterLedger('all',this)">All</div>
-    <div class="filter-chip" onclick="filterLedger('credit',this)">Credits</div>
-    <div class="filter-chip" onclick="filterLedger('debit',this)">Debits</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <h2 style="font-size:18px;font-weight:700;margin:0">Daily Ledger</h2>
+    <button class="btn-secondary" onclick="loadLedger()" style="padding:8px 16px">🔄 Sync</button>
   </div>
 
   <div id="ledgerList"><div class="loading"><div class="spinner"></div> Loading…</div></div>
@@ -672,33 +671,132 @@ function switchPage(page) {
    API HELPERS
 ────────────────────────────────────────────────────────── */
 async function loadAllTransactions() {
-  const r = await fetch(API_ENDPOINTS.rawTransactions);
+  const r = await fetch(API_ENDPOINTS.dailyLedger);
   const data = await r.json();
-  return (data.rawTransactions || []).map(row => ({
-    id: row.id,
-    date: row.date,
-    name: row.transactionName,
-    credit: parseFloat(row.credit) || 0,
-    debit: parseFloat(row.debit) || 0,
-    category: row.category || 'General'
-  }));
+
+  const creditCats = ['Value Payable/COD', 'Register/Speed Post', 'Recurring Deposit', 'Saving Bank Deposit',
+                      'Postal Life Insurance', 'Rural Postal Life Insurance', 'Sukanya Samriddhi Yojana',
+                      'IPPB Deposit', 'Time Deposit', 'Child Enrollment', 'Other Credits'];
+  const debitCats = ['Cash Deposit to Sub PO', 'Saving Bank Withdrawal', 'IPPB Withdrawal', 'Commission/Other', 'RSAO Online Debit'];
+
+  return (data.dailyLedger || [])
+    .filter(row => row.date) // Only rows with dates
+    .map(row => {
+      const mapped = {
+        id: row.id,
+        date: row.date,
+        openingBalance: (row.openingBalance && parseFloat(row.openingBalance)) || 0,
+        // Credits
+        'Value Payable/COD': (row['valuePayable /Cod'] && parseFloat(row['valuePayable /Cod'])) || 0,
+        'Register/Speed Post': (row['register /SpeedPost'] && parseFloat(row['register /SpeedPost'])) || 0,
+        'Recurring Deposit': (row.recurringDeposit && parseFloat(row.recurringDeposit)) || 0,
+        'Saving Bank Deposit': (row.savingBankDeposit && parseFloat(row.savingBankDeposit)) || 0,
+        'Postal Life Insurance': (row.postalLifeInsurance && parseFloat(row.postalLifeInsurance)) || 0,
+        'Rural Postal Life Insurance': (row.ruralPostalLifeInsurance && parseFloat(row.ruralPostalLifeInsurance)) || 0,
+        'Sukanya Samriddhi Yojana': (row.sukanyaSamriddhiYojana && parseFloat(row.sukanyaSamriddhiYojana)) || 0,
+        'IPPB Deposit': (row.ippbDeposit && parseFloat(row.ippbDeposit)) || 0,
+        'Time Deposit': (row.timeDeposit && parseFloat(row.timeDeposit)) || 0,
+        'Child Enrollment': (row.childEnrollment && parseFloat(row.childEnrollment)) || 0,
+        'Other Credits': (row.otherCredits && parseFloat(row.otherCredits)) || 0,
+        // Debits
+        'Cash Deposit to Sub PO': (row.cashDepositToSubPo && parseFloat(row.cashDepositToSubPo)) || 0,
+        'Saving Bank Withdrawal': (row.savingBankWithdrawal && parseFloat(row.savingBankWithdrawal)) || 0,
+        'IPPB Withdrawal': (row.ippbWithdrawal && parseFloat(row.ippbWithdrawal)) || 0,
+        'Commission/Other': (row['commission /Other'] && parseFloat(row['commission /Other'])) || 0,
+        'RSAO Online Debit': (row.rsaoOnlineDebit && parseFloat(row.rsaoOnlineDebit)) || 0,
+        closingBalance: (row.closingBalance && parseFloat(row.closingBalance)) || 0
+      };
+
+      // Calculate totals from categories
+      mapped.totalCredit = creditCats.reduce((sum, cat) => sum + (mapped[cat] || 0), 0);
+      mapped.totalDebit = debitCats.reduce((sum, cat) => sum + (mapped[cat] || 0), 0);
+
+      return mapped;
+    });
+}
+
+const CATEGORY_COLUMNS = {
+  'Value Payable/COD': 'valuePayable /Cod',
+  'Register/Speed Post': 'register /SpeedPost',
+  'Recurring Deposit': 'recurringDeposit',
+  'Saving Bank Deposit': 'savingBankDeposit',
+  'Postal Life Insurance': 'postalLifeInsurance',
+  'Rural Postal Life Insurance': 'ruralPostalLifeInsurance',
+  'Sukanya Samriddhi Yojana': 'sukanyaSamriddhiYojana',
+  'IPPB Deposit': 'ippbDeposit',
+  'Time Deposit': 'timeDeposit',
+  'Child Enrollment': 'childEnrollment',
+  'Other Credits': 'otherCredits',
+  'Cash Deposit to Sub PO': 'cashDepositToSubPo',
+  'Saving Bank Withdrawal': 'savingBankWithdrawal',
+  'IPPB Withdrawal': 'ippbWithdrawal',
+  'Commission/Other': 'commission /Other',
+  'RSAO Online Debit': 'rsaoOnlineDebit'
+};
+
+async function addToDailyLedger(date, category, amount) {
+  try {
+    // Get all Daily Ledger rows to find existing date
+    const r = await fetch(API_ENDPOINTS.dailyLedger);
+    const data = await r.json();
+    const ledgers = data.dailyLedger || [];
+
+    const columnName = CATEGORY_COLUMNS[category];
+    if (!columnName) {
+      console.warn('Unknown category:', category);
+      return;
+    }
+
+    // Find existing row for this date (prefer row with more populated data)
+    const matchingRows = ledgers.filter(l => l.date === date);
+    const existing = matchingRows.length > 0
+      ? matchingRows.reduce((best, current) => {
+          // Count non-empty category values
+          const bestCount = Object.keys(CATEGORY_COLUMNS).filter(cat => best[CATEGORY_COLUMNS[cat]]).length;
+          const currentCount = Object.keys(CATEGORY_COLUMNS).filter(cat => current[CATEGORY_COLUMNS[cat]]).length;
+          return currentCount > bestCount ? current : best;
+        })
+      : null;
+
+    if (existing) {
+      // Update existing row: add to current amount
+      const currentVal = parseFloat(existing[columnName]) || 0;
+      const newVal = currentVal + amount;
+
+      await fetch(`${API_ENDPOINTS.dailyLedger}/${existing.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ dailyLedger: { [columnName]: newVal } }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } else {
+      // Create new row for this date
+      const newRow = { date };
+      newRow[columnName] = amount;
+
+      await fetch(API_ENDPOINTS.dailyLedger, {
+        method: 'POST',
+        body: JSON.stringify({ dailyLedger: newRow }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  } catch(e) {
+    console.error('Daily Ledger update error:', e);
+    throw e;
+  }
 }
 
 async function addTransactionToSheet(date, name, credit, debit, category) {
-  const r = await fetch(API_ENDPOINTS.rawTransactions, {
-    method: 'POST',
-    body: JSON.stringify({
-      rawTransaction: {
-        date,
-        transactionName: name,
-        credit: credit || 0,
-        debit: debit || 0,
-        category: category || 'General'
-      }
-    }),
-    headers: { 'Content-Type': 'application/json' }
-  });
-  return r.json();
+  // Map user category to actual category name
+  let actualCategory = category;
+  if (!CATEGORY_COLUMNS[actualCategory]) {
+    // Try to find matching category
+    const keys = Object.keys(CATEGORY_COLUMNS);
+    actualCategory = keys.find(k => k.toLowerCase() === category.toLowerCase()) || category;
+  }
+
+  // Add to Daily Ledger by category
+  const amount = credit > 0 ? credit : debit;
+  await addToDailyLedger(date, actualCategory, amount);
 }
 
 /* ──────────────────────────────────────────────────────────
@@ -710,8 +808,8 @@ async function loadHome() {
     const month = monthStr();
     const filtered = txs.filter(t => t.date.substring(0, 7) === month);
 
-    const c = filtered.reduce((sum, t) => sum + t.credit, 0);
-    const d = filtered.reduce((sum, t) => sum + t.debit, 0);
+    const c = filtered.reduce((sum, t) => sum + t.totalCredit, 0);
+    const d = filtered.reduce((sum, t) => sum + t.totalDebit, 0);
 
     document.getElementById('balanceLabel').textContent =
       'Monthly Balance (' + monthLabel() + ')';
@@ -720,7 +818,7 @@ async function loadHome() {
     document.getElementById('homeDebit').textContent   = '₹ ' + fmt(d);
 
     cachedTxs = txs.slice().reverse();
-    renderTxList(document.getElementById('recentList'), cachedTxs.slice(0, 6));
+    renderDailyList(document.getElementById('recentList'), cachedTxs.slice(0, 6));
   } catch(e) {
     console.error(e);
     document.getElementById('recentList').innerHTML = errHTML('Could not load', 'Check internet connection');
@@ -737,8 +835,8 @@ async function loadDashboard() {
     const month = monthStr();
     const filtered = txs.filter(t => t.date.substring(0, 7) === month);
 
-    const c = filtered.reduce((sum, t) => sum + t.credit, 0);
-    const d = filtered.reduce((sum, t) => sum + t.debit, 0);
+    const c = filtered.reduce((sum, t) => sum + t.totalCredit, 0);
+    const d = filtered.reduce((sum, t) => sum + t.totalDebit, 0);
     const bal = c - d;
 
     document.getElementById('dashCredit').textContent  = '₹ ' + fmt(c);
@@ -781,33 +879,40 @@ function renderBar(credit, debit, balance) {
   });
 }
 
-function renderCategories(txs) {
+function renderCategories(days) {
   const el = document.getElementById('catBreakdown');
-  if (!txs.length) { el.innerHTML = emptyHTML('No data'); return; }
+  if (!days.length) { el.innerHTML = emptyHTML('No data'); return; }
 
+  // Aggregate all categories across all days
+  const creditCats = ['Value Payable/COD', 'Register/Speed Post', 'Recurring Deposit', 'Saving Bank Deposit',
+                      'Postal Life Insurance', 'Rural Postal Life Insurance', 'Sukanya Samriddhi Yojana',
+                      'IPPB Deposit', 'Time Deposit', 'Child Enrollment', 'Other Credits'];
+  const debitCats = ['Cash Deposit to Sub PO', 'Saving Bank Withdrawal', 'IPPB Withdrawal', 'Commission/Other', 'RSAO Online Debit'];
+
+  const allCats = [...creditCats, ...debitCats];
   const cats = {};
-  txs.forEach(t => {
-    const k = t.category || 'General';
-    if (!cats[k]) cats[k] = { c: 0, d: 0 };
-    cats[k].c += Number(t.credit) || 0;
-    cats[k].d += Number(t.debit)  || 0;
+
+  allCats.forEach(cat => {
+    cats[cat] = 0;
+    days.forEach(day => {
+      cats[cat] += Number(day[cat]) || 0;
+    });
   });
 
-  el.innerHTML = Object.entries(cats).map(([name, v]) => {
-    const net = v.c - v.d;
-    return `<div class="tx-item">
-      <div class="tx-info">
-        <div class="tx-name">${name}</div>
-        <div class="tx-meta">
-          <span style="color:var(--green)">+₹${fmt(v.c)}</span>&nbsp;
-          <span style="color:var(--red)">−₹${fmt(v.d)}</span>
+  el.innerHTML = Object.entries(cats)
+    .filter(([, amt]) => amt > 0)
+    .map(([name, amt]) => {
+      const isCredit = creditCats.includes(name);
+      return `<div class="tx-item">
+        <div class="tx-info">
+          <div class="tx-name">${name}</div>
+          <div class="tx-meta">${isCredit ? 'Credit' : 'Debit'}</div>
         </div>
-      </div>
-      <div style="font-weight:700;color:${net>=0?'var(--green)':'var(--red)'}">
-        ${net>=0?'+':''}₹${fmt(net)}
-      </div>
-    </div>`;
-  }).join('');
+        <div style="font-weight:700;color:${isCredit ? 'var(--green)' : 'var(--red)'}">
+          ${isCredit ? '+' : '−'}₹${fmt(amt)}
+        </div>
+      </div>`;
+    }).join('');
 }
 
 function changeMonth(dir) {
@@ -820,11 +925,96 @@ function changeMonth(dir) {
 /* ──────────────────────────────────────────────────────────
    LEDGER
 ────────────────────────────────────────────────────────── */
+async function aggregateTransactions() {
+  const rows = await loadAllTransactions();
+
+  // Daily Ledger rows are already aggregated by category
+  // Deduplicate by date (keep row with most data if duplicates exist)
+  const byDate = {};
+  rows.forEach(row => {
+    const key = row.date;
+    if (!byDate[key] || hasMoreData(row, byDate[key])) {
+      byDate[key] = row;
+    }
+  });
+
+  const sorted = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
+
+  // Calculate cumulative closing balance and totals
+  let prevClosing = 0;
+  sorted.forEach(row => {
+    row.openingBalance = prevClosing;
+
+    // Calculate totals from category columns (if not already provided)
+    const creditCats = ['Value Payable/COD', 'Register/Speed Post', 'Recurring Deposit', 'Saving Bank Deposit',
+                        'Postal Life Insurance', 'Rural Postal Life Insurance', 'Sukanya Samriddhi Yojana',
+                        'IPPB Deposit', 'Time Deposit', 'Child Enrollment', 'Other Credits'];
+    const debitCats = ['Cash Deposit to Sub PO', 'Saving Bank Withdrawal', 'IPPB Withdrawal', 'Commission/Other', 'RSAO Online Debit'];
+
+    row.totalCredit = creditCats.reduce((sum, cat) => sum + (row[cat] || 0), 0);
+    row.totalDebit = debitCats.reduce((sum, cat) => sum + (row[cat] || 0), 0);
+    row.closingBalance = row.openingBalance + row.totalCredit - row.totalDebit;
+    prevClosing = row.closingBalance;
+  });
+
+  // Return sorted descending (newest first)
+  return sorted.reverse();
+}
+
+function hasMoreData(row1, row2) {
+  const countFields = (row) => {
+    let count = 0;
+    for (const key in row) {
+      if (row[key] && typeof row[key] === 'number' && row[key] > 0) count++;
+    }
+    return count;
+  };
+  return countFields(row1) > countFields(row2);
+}
+
+function normalizeLedgerCategory(cat, type) {
+  const upper = String(cat || '').toUpperCase();
+
+  // Map various input formats to standard category names
+  const creditMaps = {
+    'COD': 'Value Payable/COD',
+    'VALUE': 'Value Payable/COD',
+    'PAYABLE': 'Value Payable/COD',
+    'SPEED': 'Register/Speed Post',
+    'REGISTER': 'Register/Speed Post',
+    'RECURRING': 'Recurring Deposit',
+    'SAVING': 'Saving Bank Deposit',
+    'POSTAL': 'Postal Life Insurance',
+    'RURAL': 'Rural Postal Life Insurance',
+    'SUKANYA': 'Sukanya Samriddhi Yojana',
+    'IPPB': 'IPPB Deposit',
+    'TIME': 'Time Deposit',
+    'CHILD': 'Child Enrollment',
+    'STATEMENT': 'Other Credits'
+  };
+
+  const debitMaps = {
+    'CASH': 'Cash Deposit to Sub PO',
+    'WITHDRAWAL': 'Saving Bank Withdrawal',
+    'COMMISSION': 'Commission/Other',
+    'RSAO': 'RSAO Online Debit',
+    'STATEMENT': 'Commission/Other'
+  };
+
+  const maps = type === 'credit' ? creditMaps : debitMaps;
+  for (const [key, val] of Object.entries(maps)) {
+    if (upper.includes(key)) return val;
+  }
+
+  // Default fallback
+  return type === 'credit' ? 'Other Credits' : 'Commission/Other';
+}
+
 async function loadLedger() {
   const el = document.getElementById('ledgerList');
   el.innerHTML = loadingHTML();
   try {
-    cachedTxs = await loadAllTransactions();
+    cachedTxs = await aggregateTransactions();
     renderLedger();
   } catch(e) {
     console.error(e);
@@ -841,44 +1031,64 @@ function filterLedger(filter, chip) {
 
 function renderLedger() {
   const el = document.getElementById('ledgerList');
-  let txs = cachedTxs;
-  if (ledgerFilter === 'credit') txs = txs.filter(t => Number(t.credit) > 0);
-  if (ledgerFilter === 'debit')  txs = txs.filter(t => Number(t.debit)  > 0);
+  let data = cachedTxs;
+  if (!data.length) { el.innerHTML = emptyHTML('No transactions', 'Add an entry or upload a PDF'); return; }
 
-  if (!txs.length) { el.innerHTML = emptyHTML('No transactions', 'Add an entry or upload a PDF'); return; }
+  // Credit and Debit category columns
+  const creditCats = ['Value Payable/COD', 'Register/Speed Post', 'Recurring Deposit', 'Saving Bank Deposit',
+                     'Postal Life Insurance', 'Rural Postal Life Insurance', 'Sukanya Samriddhi Yojana',
+                     'IPPB Deposit', 'Time Deposit', 'Child Enrollment', 'Other Credits'];
+  const debitCats = ['Cash Deposit to Sub PO', 'Saving Bank Withdrawal', 'IPPB Withdrawal', 'Commission/Other', 'RSAO Online Debit'];
 
-  const groups = {};
-  txs.forEach(t => {
-    const d = t.date || '?';
-    (groups[d] = groups[d] || []).push(t);
+  // Build table header
+  const headerCells = ['Date', 'Opening'];
+  headerCells.push(...creditCats, 'Total Cr', ...debitCats, 'Total Dr', 'Closing Balance');
+
+  let html = `<div style="overflow-x:auto;border-radius:10px;border:1px solid var(--gray-200)">
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead>
+        <tr style="background:var(--gray-100)">
+          ${headerCells.map(h => `<th style="padding:8px;text-align:left;font-weight:600;color:var(--gray-600);white-space:nowrap">${h}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>`;
+
+  data.forEach(row => {
+    const rowCells = [
+      fmtDate(row.date),
+      fmt(row.openingBalance || 0),
+      ...creditCats.map(c => fmt(row[c] || 0)),
+      fmt(row.totalCredit || 0),
+      ...debitCats.map(c => fmt(row[c] || 0)),
+      fmt(row.totalDebit || 0),
+      fmt(row.closingBalance || 0)
+    ];
+
+    html += `<tr style="border-bottom:1px solid var(--gray-100)">
+      ${rowCells.map((cell, i) => {
+        const isTotal = headerCells[i + 1]?.includes('Total') || headerCells[i + 1] === 'Closing Balance';
+        const isBold = isTotal ? 'font-weight:700' : '';
+        const bgColor = isTotal ? 'background:var(--purple-light)' : '';
+        return `<td style="padding:10px 8px;${isBold};${bgColor};white-space:nowrap">${cell}</td>`;
+      }).join('')}
+    </tr>`;
   });
 
-  el.innerHTML = Object.entries(groups)
-    .sort(([a],[b]) => b.localeCompare(a))
-    .map(([date, list]) => `
-      <div class="date-group">
-        <div class="date-group-header">
-          <div class="date-group-date">${fmtDate(date)}</div>
-          <button class="date-group-delete" onclick="deleteDay('${date}')">🗑 Delete Day</button>
-        </div>
-        <div class="card" style="padding:6px 14px;margin-bottom:0">
-          ${list.map(txHTML).join('')}
-        </div>
-      </div>`
-    ).join('');
+  html += `</tbody></table></div>`;
+  el.innerHTML = html;
 }
 
 async function deleteDay(date) {
   if (!confirm(`Delete all transactions for ${fmtDate(date)}?`)) return;
   try {
     const txs = await loadAllTransactions();
-    const toDelete = txs.filter(t => t.date === date);
+    const toDelete = txs.find(t => t.date === date);
 
-    for (const tx of toDelete) {
-      await fetch(`${API_ENDPOINTS.rawTransactions}/${tx.id}`, { method: 'DELETE' });
+    if (toDelete && toDelete.id) {
+      await fetch(`${API_ENDPOINTS.dailyLedger}/${toDelete.id}`, { method: 'DELETE' });
     }
 
-    showToast(`Deleted ${toDelete.length} transaction(s) ✓`);
+    showToast('Day cleared ✓');
     loadLedger();
     loadHome();
   } catch(e) {
@@ -992,7 +1202,7 @@ function parsePdf(text) {
   const rows = [];
   const lines = text.split('\n');
 
-  // Date regex patterns (ordered by specificity)
+  // Date regex patterns
   const dateRe = [
     /\b(\d{2}[\/\-]\d{2}[\/\-]\d{4})\b/,          // DD/MM/YYYY
     /\b(\d{4}[\/\-]\d{2}[\/\-]\d{2})\b/,          // YYYY-MM-DD
@@ -1000,46 +1210,60 @@ function parsePdf(text) {
     /\b(\d{2}[\/\-]\d{2}[\/\-]\d{2})\b/,          // DD/MM/YY
   ];
 
+  // First, try to extract report date from the document
+  let reportDate = null;
+  const reportDateMatch = text.match(/Report\s+Date[:\s]+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+  if (reportDateMatch) {
+    reportDate = normaliseDate(reportDateMatch[1]);
+  }
+
+  // Parse transactions with or without date in each line
   for (const line of lines) {
-    let dateFound = null;
+    // Skip header/footer lines
+    if (line.match(/Details of Transactions|Total|Balance|Opening|Closing|Category|Liability|Words/i)) continue;
+
+    // Try to find a date in this line
+    let lineDate = null;
     for (const re of dateRe) {
       const m = line.match(re);
-      if (m) { dateFound = normaliseDate(m[1]); break; }
+      if (m) { lineDate = normaliseDate(m[1]); break; }
     }
+
+    // Use line date, or fall back to report date
+    const dateFound = lineDate || reportDate;
     if (!dateFound) continue;
 
-    // Extract all positive numbers >= 50 (filter out small numbers like line numbers, ref numbers)
+    // Extract amounts (filter out small numbers and years)
     const nums = [...line.matchAll(/\b(\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+\.\d{1,2})\b/g)]
       .map(m => parseFloat(m[1].replace(/,/g,'')))
-      .filter(n => n >= 50 && n < 10_000_000 && !String(n).match(/^\d{4}$/));
+      .filter(n => n >= 1 && n < 10_000_000 && !String(n).match(/^\d{4}$/));
 
     if (!nums.length) continue;
 
-    // Heuristic: look for Cr / Dr markers
+    // Look for Receipts/Payments/Cr/Dr markers
     const up = line.toUpperCase();
-    const isCr = /\bCR\b|\bCREDIT\b|\bDEPOSIT\b|\bRECEIPT\b|\bCASH IN\b|\bIN\b|\bRECV\b/.test(up);
-    const isDr = /\bDR\b|\bDEBIT\b|\bWITHDRAW|\bCASH OUT\b|\bPAYMENT\b|\bCHRGS\b|\bFEE\b|\bOUT\b|\bDISB\b/.test(up);
+    const isReceipt = /RECEIPT|INCOME|IN\b|CR\b|CREDIT|DEPOSIT/.test(up);
+    const isPayment = /PAYMENT|EXPENSE|OUT\b|DR\b|DEBIT|FEE|CHARGE/.test(up);
 
-    // Clean description: strip the date, strip numbers, normalise spaces
+    // Clean description
     let desc = line
       .replace(dateRe[0], '').replace(dateRe[1], '').replace(dateRe[2], '').replace(dateRe[3], '')
-      .replace(/\b\d[\d,\.]*\b/g, '')
+      .replace(/\b\d{1,3}(?:,\d{3})*(?:\.\d{2})?\b/g, '')
       .replace(/[\/\\\-_|]+/g, ' ')
       .replace(/\s+/g, ' ').trim();
-    if (desc.length < 2) desc = 'Transaction';
-    desc = desc.substring(0, 55);
+    desc = desc.substring(0, 60);
+    if (desc.length < 2) continue;
 
-    // Use largest amount as the transaction amount
     const amount = Math.max(...nums);
     rows.push({
       date:        dateFound,
       description: desc,
-      credit:      (!isDr || isCr) ? amount : 0,
-      debit:       (isDr && !isCr) ? amount : 0,
+      credit:      (isReceipt || !isPayment) ? amount : 0,
+      debit:       (isPayment && !isReceipt) ? amount : 0,
     });
   }
 
-  // De-duplicate (same date+desc+amount)
+  // De-duplicate
   const seen = new Set();
   return rows.filter(r => {
     const key = `${r.date}|${r.description}|${r.credit}|${r.debit}`;
@@ -1101,19 +1325,30 @@ async function savePdfRows() {
   btn.disabled = true; btn.textContent = 'Saving…';
 
   try {
+    // Aggregate by date and category
+    const byDateCategory = {};
+
     for (const r of valid) {
-      await addTransactionToSheet(
-        r.date,
-        r.description,
-        r.credit || 0,
-        r.debit || 0,
-        'Statement Import'
-      );
+      // Determine category based on credit/debit
+      const category = r.credit > 0 ? 'Other Credits' : 'Commission/Other';
+      const key = `${r.date}|${category}`;
+
+      if (!byDateCategory[key]) {
+        byDateCategory[key] = { date: r.date, category, amount: 0 };
+      }
+      byDateCategory[key].amount += (r.credit || r.debit);
     }
+
+    // POST aggregated amounts to Daily Ledger
+    for (const entry of Object.values(byDateCategory)) {
+      await addToDailyLedger(entry.date, entry.category, entry.amount);
+    }
+
     showToast(`Saved ${valid.length} ✓`);
     closeModal('pdfModal');
     await new Promise(r => setTimeout(r, 1500));
     loadHome();
+    loadLedger();
   } catch(e) {
     console.error('PDF save error:', e);
     showToast('Error saving: ' + (e.message || 'Unknown'));
@@ -1154,6 +1389,25 @@ function fmtDate(s) {
     return new Date(s + 'T00:00:00').toLocaleDateString('en-IN',
       { day:'numeric', month:'short', year:'numeric' });
   } catch { return s; }
+}
+
+function dailyHTML(d) {
+  const net = d.totalCredit - d.totalDebit;
+  const isPositive = net >= 0;
+  return `<div class="tx-item">
+    <div class="tx-icon ${isPositive ? 'credit' : 'debit'}">${isPositive ? '↑' : '↓'}</div>
+    <div class="tx-info">
+      <div class="tx-name">${fmtDate(d.date)}</div>
+      <div class="tx-meta"><span style="color:var(--green)">+₹${fmt(d.totalCredit)}</span>&nbsp;<span style="color:var(--red)">−₹${fmt(d.totalDebit)}</span></div>
+    </div>
+    <div class="tx-amount ${isPositive ? 'credit' : 'debit'}">${isPositive ? '+' : ''}₹${fmt(net)}</div>
+  </div>`;
+}
+
+function renderDailyList(el, days) {
+  el.innerHTML = days.length
+    ? days.map(dailyHTML).join('')
+    : emptyHTML('No transactions', 'Tap Add Entry to get started');
 }
 
 function txHTML(t) {
