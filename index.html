@@ -754,6 +754,9 @@ const API_ENDPOINTS = {
   alerts: SHEETY_BASE + '/alerts'
 };
 
+// Google Apps Script Proxy URL (solves CORS issues with Claude API)
+const GOOGLE_APPS_SCRIPT_PROXY_URL = 'https://script.google.com/macros/s/AKfycbyuWtVhwdsmkcbsFaZUoRnbUwrQj7qbUZp-fWqQroDqVIeZK1igeSiC2OzJFLgcVj_nVA/exec';
+
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -1555,68 +1558,15 @@ async function processMonthlyImage() {
 
     showToast('📸 Extracting data from image...');
 
-    // Call Claude API with vision capabilities
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Call Claude API via Google Apps Script Proxy (solves CORS)
+    const response = await fetch(GOOGLE_APPS_SCRIPT_PROXY_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-opus-4.5',
-        max_tokens: 4096,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: mediaType,
-                data: base64
-              }
-            },
-            {
-              type: 'text',
-              text: `Extract ALL data from this monthly ledger image. Return ONLY valid JSON (no markdown, no code blocks) with this exact structure:
-{
-  "month": ${month},
-  "year": ${year},
-  "daysProcessed": <number>,
-  "confidence": "<high|medium|low>",
-  "issuesDetected": [<list of issues as strings>],
-  "entries": [
-    {
-      "date": "YYYY-MM-DD",
-      "openingBalance": <number>,
-      "totalCredits": <sum of all credit categories>,
-      "totalDebits": <sum of all debit categories>,
-      "closingBalance": <number>,
-      "details": {
-        "Value Payable/COD": <number or 0>,
-        "Register/Speed Post": <number or 0>,
-        "Recurring Deposit": <number or 0>,
-        "Saving Bank Deposit": <number or 0>,
-        "Postal Life Insurance": <number or 0>,
-        "Rural Postal Life Insurance": <number or 0>,
-        "Sukanya Samriddhi Yojana": <number or 0>,
-        "IPPB Deposit": <number or 0>,
-        "Time Deposit": <number or 0>,
-        "Child Enrollment": <number or 0>,
-        "Other Credits": <number or 0>,
-        "Cash Deposit to Sub PO": <number or 0>,
-        "Saving Bank Withdrawal": <number or 0>,
-        "IPPB Withdrawal": <number or 0>,
-        "Commission/Other": <number or 0>,
-        "RSAO Online Debit": <number or 0>
-      }
-    }
-  ]
-}`
-            }
-          ]
-        }]
+        imageBase64: base64,
+        month: month,
+        year: year,
+        apiKey: apiKey
       })
     });
 
@@ -1626,21 +1576,13 @@ async function processMonthlyImage() {
     }
 
     const data = await response.json();
-    const content = data.content[0].text;
 
-    // Parse JSON response
-    let ocrResult;
-    try {
-      ocrResult = JSON.parse(content);
-    } catch(e) {
-      // Try to extract JSON if wrapped in markdown
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        ocrResult = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('Invalid response format from Claude');
-      }
+    // Handle proxy response
+    if (data.success === false) {
+      throw new Error(data.error || 'Proxy error');
     }
+
+    let ocrResult = data.data;
 
     monthlyOcrData = ocrResult;
 
