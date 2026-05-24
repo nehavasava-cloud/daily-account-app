@@ -515,6 +515,9 @@
   <button class="nav-btn"        id="nav-ledger"    onclick="switchPage('ledger')">
     <span class="nav-icon">📋</span>Ledger
   </button>
+  <button class="nav-btn"        id="nav-settings"  onclick="openSettingsModal()">
+    <span class="nav-icon">⚙️</span>Settings
+  </button>
 </nav>
 
 <!-- ═══════════════════════════════════════════
@@ -671,12 +674,6 @@
       <input type="file" id="ocrImage" accept="image/*" style="display:none" onchange="handleOcrImage(event)">
       <div id="ocrImageMsg" style="text-align:center;margin-top:12px;font-size:14px;color:var(--gray-400)"></div>
 
-      <div class="form-group">
-        <label class="form-label">Anthropic API Key</label>
-        <input type="password" class="form-input" id="ocrApiKey" placeholder="sk-ant-...">
-        <div style="font-size:12px;color:var(--gray-400);margin-top:6px">Your key is used only for this session and never stored</div>
-      </div>
-
       <div style="display:flex;gap:10px">
         <button class="btn-secondary" style="flex:1" onclick="closeModal('monthlyModal')">Cancel</button>
         <button class="btn-primary" style="flex:1" id="processOcrBtn" onclick="processMonthlyImage()">Process Image</button>
@@ -714,6 +711,32 @@
         <button class="btn-primary" style="flex:1" id="saveOcrBtn" onclick="saveMonthlyData()">Save All</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SETTINGS MODAL
+═══════════════════════════════════════════ -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Settings</div>
+      <button class="modal-close" onclick="closeModal('settingsModal')">✕</button>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <label class="form-label">Anthropic API Key (for Monthly OCR)</label>
+      <input type="password" class="form-input" id="settingsApiKey" placeholder="sk-ant-...">
+      <div style="font-size:12px;color:var(--gray-400);margin-top:6px">Stored locally in your browser. Never sent to our servers.</div>
+      <button class="btn-primary" style="margin-top:10px;width:100%" onclick="saveApiKey()">Save API Key</button>
+    </div>
+
+    <div style="border-top:1px solid var(--gray-200);padding-top:16px">
+      <label class="form-label">Saved Status</label>
+      <div id="apiKeyStatus" style="font-size:13px;color:var(--gray-400)">Not set</div>
+    </div>
+
+    <button class="btn-secondary" style="margin-top:16px;width:100%" onclick="closeModal('settingsModal')">Done</button>
   </div>
 </div>
 
@@ -1460,6 +1483,42 @@ async function savePdfRows() {
 }
 
 /* ──────────────────────────────────────────────────────────
+   API KEY MANAGEMENT
+────────────────────────────────────────────────────────── */
+function saveApiKey() {
+  const key = document.getElementById('settingsApiKey').value.trim();
+  if (!key) {
+    showToast('Please enter an API key');
+    return;
+  }
+  localStorage.setItem('anthropicApiKey', key);
+  showToast('✓ API key saved');
+  loadApiKeyStatus();
+}
+
+function getApiKey() {
+  return localStorage.getItem('anthropicApiKey');
+}
+
+function loadApiKeyStatus() {
+  const key = getApiKey();
+  const el = document.getElementById('apiKeyStatus');
+  if (key) {
+    const masked = key.substring(0, 10) + '...' + key.substring(key.length - 4);
+    el.innerHTML = `✓ <strong>Saved</strong><br><span style="font-size:11px">${masked}</span><br><button class="btn-secondary" style="margin-top:8px;width:100%;padding:6px" onclick="clearApiKey()">Clear Key</button>`;
+  } else {
+    el.textContent = '❌ Not set - Configure in Settings to use Monthly OCR';
+  }
+}
+
+function clearApiKey() {
+  localStorage.removeItem('anthropicApiKey');
+  document.getElementById('settingsApiKey').value = '';
+  showToast('✓ API key cleared');
+  loadApiKeyStatus();
+}
+
+/* ──────────────────────────────────────────────────────────
    MONTHLY LEDGER OCR
 ────────────────────────────────────────────────────────── */
 function handleOcrImage(event) {
@@ -1471,7 +1530,7 @@ function handleOcrImage(event) {
 
 async function processMonthlyImage() {
   const fileInput = document.getElementById('ocrImage');
-  const apiKey = document.getElementById('ocrApiKey').value.trim();
+  const apiKey = getApiKey();
   const month = document.getElementById('ocrMonth').value;
   const year = document.getElementById('ocrYear').value;
 
@@ -1480,7 +1539,7 @@ async function processMonthlyImage() {
     return;
   }
   if (!apiKey) {
-    showToast('Please enter API key');
+    showToast('⚠️ API key not set. Go to Settings to add it.');
     return;
   }
 
@@ -1584,7 +1643,6 @@ async function processMonthlyImage() {
     }
 
     monthlyOcrData = ocrResult;
-    monthlyApiKey = apiKey;
 
     // Show preview
     showOcrPreview(ocrResult);
@@ -1706,7 +1764,11 @@ function closeModal(id) {
 function openMonthlyModal() {
   document.getElementById('monthlyModal').classList.add('active');
 }
-['addModal','pdfModal','monthlyModal'].forEach(id => {
+function openSettingsModal() {
+  document.getElementById('settingsModal').classList.add('active');
+  loadApiKeyStatus();
+}
+['addModal','pdfModal','monthlyModal','settingsModal'].forEach(id => {
   document.getElementById(id).addEventListener('click', e => {
     if (e.target === document.getElementById(id)) closeModal(id);
   });
